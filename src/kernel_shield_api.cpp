@@ -7,12 +7,68 @@ namespace waos {
   kernel_shield_request_context_type kernel_shield_request_context;
 
   std::shared_ptr<serialization::promise<kernel_shield::process_id>> kernel_shield::spawn(binary code, size_t memory_limit, size_t mana_limit) {
-    return kernel_client::kernel_rpc->spawn(code, memory_limit, mana_limit);
+    auto promise = kernel_client::kernel_rpc->spawn(code, memory_limit, mana_limit);
+    auto result_promise = std::make_shared<serialization::promise<kernel_shield::process_id>>();
+    
+    promise->on_resolved([result_promise](kernel_shield::process_id& process_id) {
+      // Ensure processes vector is large enough
+      if(process_id >= processes.size()) {
+        processes.resize(process_id + 1);
+      }
+      
+      // Create and store the process
+      kernel::process_id spawned_by = kernel_shield_request_context.process_id;
+      auto proc = std::make_shared<process>(process_id, spawned_by);
+      processes[process_id] = proc;
+      
+      // Initialize the process and wait for it to complete
+      auto init_promise = proc->initialize();
+      init_promise->on_resolved([result_promise, process_id]() {
+        result_promise->resolve(process_id);
+      });
+      init_promise->on_rejected([result_promise](std::exception_ptr exception) {
+        result_promise->reject(exception);
+      });
+    });
+    
+    promise->on_rejected([result_promise](std::exception_ptr exception) {
+      result_promise->reject(exception);
+    });
+    
+    return result_promise;
   }
 
   std::shared_ptr<serialization::promise<kernel_shield::process_id>> kernel_shield::resurect(binary code, binary memory,
                                                                                               size_t memory_limit, size_t mana_limit) {
-    return kernel_client::kernel_rpc->resurect(code, memory, memory_limit, mana_limit);
+    auto promise = kernel_client::kernel_rpc->resurect(code, memory, memory_limit, mana_limit);
+    auto result_promise = std::make_shared<serialization::promise<kernel_shield::process_id>>();
+    
+    promise->on_resolved([result_promise](kernel_shield::process_id& process_id) {
+      // Ensure processes vector is large enough
+      if(process_id >= processes.size()) {
+        processes.resize(process_id + 1);
+      }
+      
+      // Create and store the process
+      kernel::process_id spawned_by = kernel_shield_request_context.process_id;
+      auto proc = std::make_shared<process>(process_id, spawned_by);
+      processes[process_id] = proc;
+      
+      // Initialize the process and wait for it to complete
+      auto init_promise = proc->initialize();
+      init_promise->on_resolved([result_promise, process_id]() {
+        result_promise->resolve(process_id);
+      });
+      init_promise->on_rejected([result_promise](std::exception_ptr exception) {
+        result_promise->reject(exception);
+      });
+    });
+    
+    promise->on_rejected([result_promise](std::exception_ptr exception) {
+      result_promise->reject(exception);
+    });
+    
+    return result_promise;
   }
 
   std::shared_ptr<serialization::promise<binary>> kernel_shield::save(kernel_shield::process_id id) {
@@ -20,7 +76,35 @@ namespace waos {
   }
 
   std::shared_ptr<serialization::promise<void>> kernel_shield::kill(kernel_shield::process_id id) {
-    return kernel_client::kernel_rpc->kill(id);
+    auto promise = kernel_client::kernel_rpc->kill(id);
+    auto result_promise = std::make_shared<serialization::promise<void>>();
+    
+    promise->on_resolved([result_promise, id]() {
+      // Finalize the process before removing it
+      if(id < processes.size() && processes[id] != nullptr) {
+        auto proc = processes[id];
+        auto finalize_promise = proc->finalize();
+        finalize_promise->on_resolved([result_promise, id]() {
+          // Remove the process from the vector after finalization
+          if(id < processes.size()) {
+            processes[id] = nullptr;
+          }
+          result_promise->resolve();
+        });
+        finalize_promise->on_rejected([result_promise](std::exception_ptr exception) {
+          result_promise->reject(exception);
+        });
+      } else {
+        // Process not found, resolve anyway
+        result_promise->resolve();
+      }
+    });
+    
+    promise->on_rejected([result_promise](std::exception_ptr exception) {
+      result_promise->reject(exception);
+    });
+    
+    return result_promise;
   }
 
   std::shared_ptr<serialization::promise<void>> kernel_shield::bind(kernel_shield::process_id process_from, kernel_shield::socket_id socket_from, 

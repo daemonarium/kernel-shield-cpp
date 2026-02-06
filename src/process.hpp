@@ -13,12 +13,16 @@ namespace waos {
   class process {
     public:
       kernel::process_id id;
+      kernel::process_id spawned_by;
       std::uint32_t last_request_id = 0;
 
       std::unordered_map<std::uint32_t, std::function<void(binary&)>> response_handlers;
 
-      process(kernel::process_id id) : id(id), last_request_id(0) {}
+      process(kernel::process_id id, kernel::process_id spawned_by) : id(id), spawned_by(spawned_by), last_request_id(0) {}
       ~process() {}
+
+      std::shared_ptr<serialization::promise<void>> initialize();
+      std::shared_ptr<serialization::promise<void>> finalize();
 
       kernel::socket_id api_socket_id() const {
         return (id << 2) | 0; // socket 0 is always used for requests to process

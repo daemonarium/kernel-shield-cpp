@@ -9,6 +9,32 @@ namespace waos {
   
   using serialization::promise;
 
+  std::shared_ptr<serialization::promise<void>> process::initialize() {
+    struct socket_options socket_options = {
+      .input_buffer_size = 1024,
+      .output_buffer_size = 1024,
+      .flush_threshold = 1024,
+      .data_event_threshold = 1024,
+      .drain_event_threshold = 1024,
+      .flags = 0,
+    };
+    socket_open(monitor_socket_id(), &socket_options);
+    socket_open(debug_socket_id(), &socket_options);
+    socket_open(kernel_api_socket_id(), &socket_options);
+    socket_open(api_socket_id(), &socket_options);
+    
+    return promise<void>::resolved();
+  }
+
+  std::shared_ptr<serialization::promise<void>> process::finalize() {
+    socket_close(monitor_socket_id());
+    socket_close(debug_socket_id());
+    socket_close(kernel_api_socket_id());
+    socket_close(api_socket_id());
+    
+    return promise<void>::resolved();
+  }
+
   std::shared_ptr<serialization::promise<binary>> process::request(binary request) {
     auto p = std::make_shared<promise<binary>>();
     std::uint64_t request_id = last_request_id++;
