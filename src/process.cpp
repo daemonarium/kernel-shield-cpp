@@ -2,6 +2,7 @@
 
 #include <io/socket.h>
 #include <serialization/promise.hpp>
+#include "kernel_client.hpp"
 
 namespace waos {
 
@@ -18,21 +19,19 @@ namespace waos {
       .drain_event_threshold = 1024,
       .flags = 0,
     };
-    socket_open(monitor_socket_id(), &socket_options);
-    socket_open(debug_socket_id(), &socket_options);
+    // reverse order to avoid multiple resizes
     socket_open(kernel_api_socket_id(), &socket_options);
     socket_open(api_socket_id(), &socket_options);
+
+    // 1 is the kernel shield process id
+    co_await kernel_client::kernel_rpc->monitor(id, 1, 2);
     
-    return promise<void>::resolved();
+    co_return;
   }
 
-  std::shared_ptr<serialization::promise<void>> process::finalize() {
-    socket_close(monitor_socket_id());
-    socket_close(debug_socket_id());
+  void process::finalize() {        
     socket_close(kernel_api_socket_id());
     socket_close(api_socket_id());
-    
-    return promise<void>::resolved();
   }
 
   std::shared_ptr<serialization::promise<binary>> process::request(binary request) {
@@ -43,7 +42,7 @@ namespace waos {
     };
 
     kernel::socket_id socket_id = api_socket_id();
-    struct socket_info* socket = get_socket_info(socket_id);
+    auto socket = get_socket_info(socket_id);
 
     uint32_t req_len = request.size() + sizeof(request_id);
     

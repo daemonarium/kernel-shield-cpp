@@ -12,6 +12,7 @@
 #include "process_event.hpp"
 #include "kernel_client.hpp"
 #include "process.hpp"
+#include "process_event.hpp"
 
 using rpc_server_type = serialization::rpc_server<serialization::circular_buffer_reader, serialization::circular_buffer_writer>;
 extern rpc_server_type rpc_server;
@@ -85,11 +86,16 @@ void waos_socket_flush(std::uint32_t socket);
 extern "C" __attribute__((import_module("waos"), import_name("waos_socket_input_drain")))
 void waos_socket_input_drain(std::uint32_t socket);
 
+enum class base_socket_id {
+  USER = 0, // socket 0 is always used for user requests to kernel shield
+  KERNEL = 1, // socket 1 is always used for requests to kernel and responses from kernel
+  DEBUG = 2, // socket 2 is always used for debug messages to process
+  MONITOR = 3, // socket 3 is always used for monitor messages to process
+};
+
 enum class process_socket_id {
   PROCESS_API = 0,
-  KERNEL_API = 1,
-  DEBUG = 2,
-  MONITOR = 3,
+  KERNEL_API = 1
 };
 
 void handle_process_response_data(size_t process_id, std::uint32_t socket_id) {
@@ -136,6 +142,7 @@ void handle_kernel_shield_request_data(size_t process_id, std::uint32_t socket_i
   // --- read one length-prefixed request from socket0 input ---
   uint32_t req_len = 0;
   if (circular_buffer_readable_bytes(&socket->input_buffer) < sizeof(req_len)) {
+    waos_socket_input_drain(socket_id);
     return; // not enough data yet
   }
   circular_buffer_peek(&socket->input_buffer, 0, &req_len, sizeof(req_len));
@@ -176,23 +183,71 @@ void handle_kernel_shield_request_data(size_t process_id, std::uint32_t socket_i
   }
 }
 
-void handle_process_debug_data(size_t process_id, std::uint32_t socket) {
-  
-}
+std::unique_ptr<serialization::circular_buffer_reader> signal_reader;
 
-void handle_process_monitor_data(size_t process_id, std::uint32_t socket) {
+void handle_process_monitor_data() {
+  struct socket_info* socket = get_socket_info((std::uint32_t)base_socket_id::MONITOR);
+  // --- read one length-prefixed request from socket0 input ---
+  uint32_t signal_len = 0;
+  if (circular_buffer_readable_bytes(&socket->input_buffer) < sizeof(signal_len)) {
+    waos_socket_input_drain((std::uint32_t)base_socket_id::MONITOR);
+    return; // not enough data yet
+  }
+  circular_buffer_peek(&socket->input_buffer, 0, &signal_len, sizeof(signal_len));
+  size_t available = circular_buffer_readable_bytes(&socket->input_buffer);
+  if (available < sizeof(signal_len) + signal_len) {
+    circular_buffer_reserve_for_reading(&socket->input_buffer, signal_len + sizeof(signal_len));
+    waos_socket_input_drain((std::uint32_t)base_socket_id::MONITOR);
+    return; // wait for full message
+  }
+
+  std::shared_ptr<waos::process_event> event_pointer;
+  signal_reader->read_typed(event_pointer);
+  signal_reader->read_rest();
+  if(!event_pointer) return; // no event
+  auto process_id = event_pointer->process;
+  std::shared_ptr<waos::process_killed_event> killed_event = std::dynamic_pointer_cast<waos::process_killed_event>(event_pointer);
+  std::shared_ptr<waos::process_error_event> error_event = std::dynamic_pointer_cast<waos::process_error_event>(event_pointer);
+  if(killed_event) {
+
+  }
+  if(error_event) {
+    
+  }
+  
+  // Finalize the process before removing it
+  if(process_id < waos::processes.size() && waos::processes[process_id] != nullptr) {
+    auto proc = waos::processes[process_id];
+    proc->finalize();
+    // Remove the process from the vector after finalization
+    if(process_id < waos::processes.size()) {
+      waos::processes[process_id] = nullptr;
+    }
+  }
+  // Process not found, resolve anyway
   
 }
 
 extern "C" void waos_socket_data(std::uint32_t socket) {
 
-  if(socket == 1) { // responses from kernel
-    waos::kernel_client::handle_data();
+  if(socket < 4) {
+    if(socket == 0) { // requests from user to kernel shield
+      handle_kernel_shield_request_data(0, socket);
+    }
+    if(socket == 1) { // responses from kernel
+      waos::kernel_client::handle_data();      
+    }
+    if(socket == 2) { // reserved for future use
+      
+    }
+    if(socket == 3) { // monitor messages
+      handle_process_monitor_data();      
+    }
     return;
   }
 
-  size_t process_id = socket >> 2;
-  process_socket_id process_socket_id = static_cast<enum process_socket_id>(socket & 3);
+  size_t process_id = socket >> 1;
+  process_socket_id process_socket_id = static_cast<enum process_socket_id>(socket & 1);
 
   switch(process_socket_id) {
     case process_socket_id::PROCESS_API: // responses from processes
@@ -200,12 +255,6 @@ extern "C" void waos_socket_data(std::uint32_t socket) {
       break;
     case process_socket_id::KERNEL_API: // requests from processes to kernel shield
         handle_kernel_shield_request_data(process_id, socket);
-      break;
-    case process_socket_id::DEBUG: // debug messages
-        handle_process_debug_data(process_id, socket);
-      break;
-    case process_socket_id::MONITOR: // monitor messages - ignore for now
-        handle_process_monitor_data(process_id, socket);
       break;
   }
 
@@ -232,7 +281,14 @@ extern "C" void start() {
   };
 
   waos::kernel_client::start();
+
+  socket_open((std::uint32_t)base_socket_id::MONITOR, &socket_options);
+  signal_reader = std::make_unique<serialization::circular_buffer_reader>(
+    &get_socket_info((std::uint32_t)base_socket_id::MONITOR)->input_buffer, 0
+  );    
+  signal_reader->register_deserialization_function<waos::process_killed_event>();
+  signal_reader->register_deserialization_function<waos::process_error_event>();
   
-  socket_open((1<<2)|0, &socket_options); // open socket used to communicate with the shield from outside
+  socket_open((std::uint32_t)base_socket_id::USER, &socket_options); // open socket used to communicate with the shield from outside
 
 }
