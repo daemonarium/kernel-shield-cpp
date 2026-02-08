@@ -4,6 +4,9 @@
 #include <serialization/promise.hpp>
 #include "kernel_client.hpp"
 
+extern "C" __attribute__((import_module("waos"), import_name("waos_socket_flush")))
+void waos_socket_flush(std::uint32_t socket);
+
 namespace waos {
 
   std::vector<std::shared_ptr<waos::process>> processes;
@@ -51,7 +54,7 @@ namespace waos {
     circular_buffer_poke(&socket->output_buffer, sizeof(req_len) + request_id_size, request.data(), req_len);
     circular_buffer_commit_write(&socket->output_buffer, req_len + request_id_size + sizeof(req_len));
 
-    socket_flush(socket_id);
+    waos_socket_flush(socket_id);
 
     return p;
   }  

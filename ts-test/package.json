@@ -1,0 +1,18 @@
+{
+  "name": "@wa-os/kernel-shield-tests",
+  "version": "0.1.0",
+  "description": "Test suite for kernel-shield module",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@wa-os/ts-kernel": "0.1.0",
+    "@wa-os/ts-rpc": "0.1.0"
+  },
+  "devDependencies": {
+    "vitest": "^1.0.0",
+    "typescript": "~5.9.0"
+  }
+}

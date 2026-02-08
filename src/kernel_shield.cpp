@@ -1,5 +1,3 @@
-
-
 #include <serialization/stream_writer.hpp>
 #include <serialization/rpc_server.hpp>
 #include <serialization/type_registry.hpp>
@@ -45,8 +43,7 @@ serialization::type_registry registry;
 
 waos::kernel_shield kernel_shield;
 
-void register_all(){
-  register_rpc(kernel_shield);
+void register_process_events() {
   waos::process_event_pointer eventPointer;
   register_rpc(eventPointer);
   waos::process_killed_event killedEvent;
@@ -55,15 +52,12 @@ void register_all(){
   register_rpc(errorEvent);
 }
 
-extern "C" size_t rpc_description(std::uint32_t socket, char** buffer) {  
-  std::uint32_t process_id = socket >> 2;
-  std::uint32_t process_socket_id = socket & 3;
+void register_all(){
+  register_rpc(kernel_shield);
+  register_process_events();
+}
 
-  if(process_socket_id != 0) {
-    /// rpc description only for process -> kernel-shield requests
-    return 0; 
-  }
-
+size_t user_rpc_description(char** buffer) {
   serialization::type_description::create(serialization::read_annotation(), registry);
   register_all();
   std::ostringstream output_stream;
@@ -78,6 +72,39 @@ extern "C" size_t rpc_description(std::uint32_t socket, char** buffer) {
   *buffer = (char*)malloc(output_stream.str().size());
   memcpy(*buffer, output_stream.str().data(), output_stream.str().size());
   return output_stream.str().size();
+}
+
+size_t monitor_rpc_description(char** buffer) {
+  serialization::type_description::create(serialization::read_annotation(), registry);
+  register_process_events();
+  std::ostringstream output_stream;
+  serialization::stream_writer writer(output_stream);  
+
+  writer.register_serialization_function<serialization::type_description>();
+  writer.register_serialization_function<serialization::read_annotation>();
+}
+
+extern "C" size_t rpc_description(std::uint32_t socket_id, char** buffer) {  
+  if(socket_id < 4) {
+    if(socket_id == 0) { // user requests to kernel shield
+      return user_rpc_description(buffer);
+    }
+    if(socket_id == 3) { // monitor messages
+      return monitor_rpc_description(buffer);
+    }
+    return 0;
+  }
+
+  std::uint32_t process_id = socket_id >> 1;
+  std::uint32_t process_socket_id = socket_id & 1;
+
+  if(process_socket_id == 0) {  // requests to process and responses from process
+    return 0;
+  }
+  if(process_socket_id == 1) { // requests from process to kernel shield
+    return user_rpc_description(buffer);
+  }
+  return 0;
 }
 
 extern "C" __attribute__((import_module("waos"), import_name("waos_socket_flush")))
@@ -139,47 +166,51 @@ void handle_process_response_data(size_t process_id, std::uint32_t socket_id) {
 void handle_kernel_shield_request_data(size_t process_id, std::uint32_t socket_id) {
   
   struct socket_info* socket = get_socket_info(socket_id);
-  // --- read one length-prefixed request from socket0 input ---
-  uint32_t req_len = 0;
-  if (circular_buffer_readable_bytes(&socket->input_buffer) < sizeof(req_len)) {
-    waos_socket_input_drain(socket_id);
-    return; // not enough data yet
-  }
-  circular_buffer_peek(&socket->input_buffer, 0, &req_len, sizeof(req_len));
-  size_t available = circular_buffer_readable_bytes(&socket->input_buffer);
-  if (available < sizeof(req_len) + req_len) {
-    circular_buffer_reserve_for_reading(&socket->input_buffer, req_len + sizeof(req_len));
-    waos_socket_input_drain(socket_id);
-    return; // wait for full message
-  }
 
-  // consume length prefix
-  circular_buffer_skip_read(&socket->input_buffer, sizeof(req_len));
-  // create reader at the end of the length prefix
-  serialization::circular_buffer_reader reader(&socket->input_buffer, 0);
+  while(true) {
+    // --- read one length-prefixed request from socket0 input ---
+    uint32_t req_len = 0;
+    if (circular_buffer_readable_bytes(&socket->input_buffer) < sizeof(req_len)) {
+      waos_socket_input_drain(socket_id);
+      return; // not enough data yet
+    }
+    circular_buffer_peek(&socket->input_buffer, 0, &req_len, sizeof(req_len));
+    size_t available = circular_buffer_readable_bytes(&socket->input_buffer);
+    if (available < sizeof(req_len) + req_len) {
+      circular_buffer_reserve_for_reading(&socket->input_buffer, req_len + sizeof(req_len));
+      waos_socket_input_drain(socket_id);
+      return; // wait for full message
+    }
 
-  uint32_t placeholder = 0;
-  circular_buffer_poke(&socket->output_buffer, 0, &placeholder, sizeof(placeholder));
-  serialization::circular_buffer_writer writer(&socket->output_buffer, sizeof(placeholder));  
+    // consume length prefix
+    circular_buffer_skip_read(&socket->input_buffer, sizeof(req_len));
+    // create reader at the end of the length prefix
+    serialization::circular_buffer_reader reader(&socket->input_buffer, 0);
 
-  waos::kernel_shield_request_context.process_id = process_id;
+    uint32_t placeholder = 0;
+    circular_buffer_poke(&socket->output_buffer, 0, &placeholder, sizeof(placeholder));
+    serialization::circular_buffer_writer writer(&socket->output_buffer, sizeof(placeholder));  
 
-  auto promise = rpc_server.handle_call(reader, writer);
-  // skip readed bytes
-  circular_buffer_skip_read(&socket->input_buffer, req_len);
+    waos::kernel_shield_request_context.process_id = process_id;
 
-  promise->on_resolved([&](void) {        
-    writer.write_rest();
+    auto promise = rpc_server.handle_call(reader, writer);
+    // skip readed bytes
+    circular_buffer_skip_read(&socket->input_buffer, req_len);
 
-    uint32_t payload_len = writer.write_offset_ - sizeof(placeholder);
-    circular_buffer_poke(&socket->output_buffer, 0, &payload_len, sizeof(payload_len));
-    circular_buffer_commit_write(&socket->output_buffer, writer.write_offset_);    
+    promise->on_resolved([&](void) {        
+      writer.write_rest();
 
-    waos_socket_flush(socket_id); // always flush after full response
-  });
+      uint32_t payload_len = writer.write_offset_ - sizeof(placeholder);
+      circular_buffer_poke(&socket->output_buffer, 0, &payload_len, sizeof(payload_len));
+      circular_buffer_commit_write(&socket->output_buffer, writer.write_offset_);    
 
-  if(!circular_buffer_readable_bytes(&socket->input_buffer)) {
-    waos_socket_input_drain(socket_id);
+      waos_socket_flush(socket_id); // always flush after full response
+    });
+
+    if(!circular_buffer_readable_bytes(&socket->input_buffer)) {
+      waos_socket_input_drain(socket_id);
+      return;
+    }
   }
 }
 
@@ -286,8 +317,8 @@ extern "C" void start() {
   signal_reader = std::make_unique<serialization::circular_buffer_reader>(
     &get_socket_info((std::uint32_t)base_socket_id::MONITOR)->input_buffer, 0
   );    
-  signal_reader->register_deserialization_function<waos::process_killed_event>();
-  signal_reader->register_deserialization_function<waos::process_error_event>();
+  signal_reader->register_deserialize_typed_function<waos::process_killed_event>();
+  signal_reader->register_deserialize_typed_function<waos::process_error_event>();
   
   socket_open((std::uint32_t)base_socket_id::USER, &socket_options); // open socket used to communicate with the shield from outside
 
