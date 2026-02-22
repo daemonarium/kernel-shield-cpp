@@ -109,4 +109,6 @@ namespace waos {
     return process->request(request);
   }
 
+
+  kernel_shield kernel_shield_api;
 }

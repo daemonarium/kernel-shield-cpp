@@ -65,4 +65,6 @@ namespace waos {
       static std::shared_ptr<serialization::promise<binary>> request(process_id process_id, binary request);
   };
 
+  extern kernel_shield kernel_shield_api;
+
 }

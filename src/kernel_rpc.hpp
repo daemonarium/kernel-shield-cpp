@@ -1,4 +1,4 @@
-#include <serialization/rpc_client.hpp>
+#include <serialization/socket_rpc_client.hpp>
 #include <serialization/promise.hpp>
 #include <memory>
 #include <vector>
@@ -7,7 +7,7 @@
 
 namespace waos {
 
-  template <typename rpc_client_type>
+  template <typename rpc_client_ptr_type>
   class kernel_rpc {
     public:
 
@@ -15,7 +15,7 @@ namespace waos {
       using process_id = kernel::process_id;
       using socket_id = kernel::socket_id;
 
-      kernel_rpc(std::shared_ptr<rpc_client_type> rpc_client) : rpc_client_(rpc_client) {}
+      kernel_rpc(rpc_client_ptr_type rpc_client) : rpc_client_(rpc_client) {}
       ~kernel_rpc() {}
       
       std::shared_ptr<serialization::promise<std::uint64_t>> spawn(std::vector<std::uint8_t> code, std::uint64_t memory_limit, std::uint64_t mana_limit) {
@@ -59,7 +59,7 @@ namespace waos {
       }
 
     private:
-      std::shared_ptr<rpc_client_type> rpc_client_;
+      rpc_client_ptr_type rpc_client_;
   };
 
 };

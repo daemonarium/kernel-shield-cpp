@@ -2,10 +2,12 @@
 
 #include <io/socket.h>
 #include <serialization/promise.hpp>
+#include <utils/socket_handlers.hpp>
 #include "kernel_client.hpp"
+#include "rpc_registration.hpp"
+#include "kernel_shield_api.hpp"
 
-extern "C" __attribute__((import_module("waos"), import_name("waos_socket_flush")))
-void waos_socket_flush(std::uint32_t socket);
+#include "sockets.hpp"
 
 namespace waos {
 
@@ -26,46 +28,48 @@ namespace waos {
     socket_open(kernel_api_socket_id(), &socket_options);
     socket_open(api_socket_id(), &socket_options);
 
+    // Create socket_rpc_server for kernel_api_socket_id
+    rpc_server_ = std::make_unique<serialization::socket_rpc_server>(kernel_api_socket_id());
+    
+    // Register all RPC methods without registering types (types already registered)
+    rpc_registration::register_all(rpc_server_.get(), false);
+    
+    // Register handler for kernel_api_socket_id
+    auto server_ptr = rpc_server_.get();
+    auto process_id = id;
+    socket_handlers::register_socket_handler(kernel_api_socket_id(), [server_ptr, process_id]() {
+      kernel_shield_request_context.process_id = process_id;
+      server_ptr->handle_data();
+    });
+
+    // Create socket_rpc_client for api_socket_id (for sending requests to process)
+    rpc_client_ = std::make_unique<serialization::socket_rpc_client>(api_socket_id());
+    
+    // Register handler for api_socket_id (for receiving responses from process)
+    auto client_ptr = rpc_client_.get();
+    socket_handlers::register_socket_handler(api_socket_id(), [client_ptr]() {
+      client_ptr->handle_data();
+    });
+
     // 1 is the kernel shield process id
-    co_await kernel_client::kernel_rpc->monitor(id, 1, 2);
+    co_await kernel_client::kernel_rpc->monitor(id, 1, (std::uint32_t)base_socket_id::MONITOR);
     
     co_return;
   }
 
-  void process::finalize() {        
+  void process::finalize() {
+    // Unregister handlers
+    socket_handlers::unregister_socket_handler(kernel_api_socket_id());
+    socket_handlers::unregister_socket_handler(api_socket_id());
+    
     socket_close(kernel_api_socket_id());
     socket_close(api_socket_id());
   }
 
   std::shared_ptr<serialization::promise<binary>> process::request(binary request) {
-    auto p = std::make_shared<promise<binary>>();
-    std::uint64_t request_id = last_request_id++;
-    response_handlers[request_id] = [p, request_id, this](binary& response) {
-      p->resolve(response);
-    };
-
-    kernel::socket_id socket_id = api_socket_id();
-    auto socket = get_socket_info(socket_id);
-
-    uint32_t req_len = request.size() + sizeof(request_id);
-    
-    circular_buffer_poke(&socket->output_buffer, 0, &req_len, sizeof(req_len));
-    size_t request_id_size = circular_buffer_poke_uvarint(&socket->output_buffer, 4,  request_id);
-    circular_buffer_poke(&socket->output_buffer, sizeof(req_len) + request_id_size, request.data(), req_len);
-    circular_buffer_commit_write(&socket->output_buffer, req_len + request_id_size + sizeof(req_len));
-
-    waos_socket_flush(socket_id);
-
-    return p;
-  }  
-
-  void process::handle_response(std::uint32_t request_id, binary& response) {
-    auto it = response_handlers.find(request_id);
-    if(it == response_handlers.end()) {
-      return;
-    }
-    it->second(response);
-    response_handlers.erase(it);
+    // Use socket_rpc_client to send request to process
+    // function_id 0 is used for process requests, id is the process_id
+    return rpc_client_->template call<binary>(0, request);
   }
 
 }

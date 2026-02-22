@@ -9,7 +9,7 @@ include_directories(src)
 aux_source_directory(src SRC_FILES)
 
 set(WASI_STUBS_FILES ${CMAKE_SOURCE_DIR}/cpp-rpc/src/utils/wasi_stubs.cpp)
-#set(WASM_FILES ${CMAKE_SOURCE_DIR}/cpp-rpc/src/utils/module.cpp)
+set(WASM_FILES ${CMAKE_SOURCE_DIR}/cpp-rpc/src/utils/socket_handlers.cpp)
 
 aux_source_directory(${CMAKE_SOURCE_DIR}/cpp-rpc/src/io IO_FILES)
 
