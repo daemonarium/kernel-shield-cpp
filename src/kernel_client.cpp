@@ -1,5 +1,5 @@
 #include "kernel_client.hpp"
-#include <io/socket.h>
+#include <socket/socket.h>
 #include <utils/socket_handlers.hpp>
 
 namespace waos {

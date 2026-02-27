@@ -1,6 +1,6 @@
 #include "kernel_shield_api.hpp"
 #include "kernel_client.hpp"
-#include <io/socket.h>
+#include <socket/socket.h>
 #include "process.hpp"
 
 namespace waos {

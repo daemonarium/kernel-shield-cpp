@@ -6,7 +6,7 @@
 #include <serialization/circular_buffer_writer.hpp>
 #include <utils/socket_handlers.hpp>
 
-#include <io/socket.h>
+#include <socket/socket.h>
 #include <memory>
 #include "kernel_shield_api.hpp"
 #include "process_event.hpp"
