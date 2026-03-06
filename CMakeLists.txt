@@ -12,12 +12,16 @@ set(WASI_STUBS_FILES ${CMAKE_SOURCE_DIR}/cpp-rpc/src/utils/wasi_stubs.cpp)
 set(WASM_FILES ${CMAKE_SOURCE_DIR}/cpp-rpc/src/utils/socket_handlers.cpp)
 
 aux_source_directory(${CMAKE_SOURCE_DIR}/cpp-rpc/src/io IO_FILES)
+aux_source_directory(${CMAKE_SOURCE_DIR}/cpp-rpc/src/socket SOCKET_FILES)
 
 set(EXECUTABLE_NAME kernel-shield)
 
 if(WASM)  
     
-  add_executable(${EXECUTABLE_NAME} ${SRC_FILES} ${WASI_STUBS_FILES} ${WASM_FILES} ${IO_FILES})
+  add_executable(${EXECUTABLE_NAME} ${SRC_FILES} ${WASM_FILES} ${IO_FILES} ${SOCKET_FILES})
+  target_compile_options(${EXECUTABLE_NAME} PRIVATE
+    -fwasm-exceptions
+  )
   target_link_options(${EXECUTABLE_NAME} PRIVATE
     -s STANDALONE_WASM=1
     -fwasm-exceptions
@@ -44,3 +48,5 @@ if(WASM)
   )
 
 endif()
+
+add_subdirectory(cpp-test)

@@ -26,6 +26,23 @@ describe('Kernel Shield', () => {
     expect(methodNames).to.include('kernel_shield.request')
   })
 
+  it('random bind that should fail', async () => {
+    const methods = context.rpcRegistry.getMethods()
+    const bindMethod = methods.find(m => m.memberName === 'kernel_shield.bind')
+    expect(bindMethod).to.be.not.undefined
+    
+    if (!bindMethod) return
+    
+    try {
+      await context.rpcClient.call(bindMethod.methodId, 1, 0, 1, 0, Direction.BOTH)
+      expect(true).to.be.false
+    } catch (error) {
+      expect(error).to.be.not.undefined
+    }
+
+
+  })
+
   it('should handle save request (passthrough to kernel)', async () => {
     // Find save method
     const methods = context.rpcRegistry.getMethods()
@@ -89,7 +106,8 @@ describe('Kernel Shield', () => {
 
       // Create dummy code for spawn
       //const code = context.kernelShieldCode
-      const code = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0])
+      //const code = new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0])
+      const code = new Uint8Array(new Array(1024).fill(0).map((_, i) => i % 256))
 
       // Call spawn
       // This will:

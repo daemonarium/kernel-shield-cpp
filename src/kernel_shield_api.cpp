@@ -2,13 +2,14 @@
 #include "kernel_client.hpp"
 #include <socket/socket.h>
 #include "process.hpp"
+#include <serialization/rpc_exception.hpp>
 
 namespace waos {
   kernel_shield_request_context_type kernel_shield_request_context;
 
   std::shared_ptr<serialization::promise<kernel_shield::process_id>> kernel_shield::spawn(binary code, size_t memory_limit, size_t mana_limit) {
     auto process_id = co_await kernel_client::kernel_rpc->spawn(code, memory_limit, mana_limit);
-    
+
     // Ensure processes vector is large enough
     if(process_id >= processes.size()) {
       processes.resize(process_id + 1);
@@ -46,7 +47,7 @@ namespace waos {
   }
 
   std::shared_ptr<serialization::promise<binary>> kernel_shield::save(kernel_shield::process_id id) {
-    return kernel_client::kernel_rpc->save(id);
+    return kernel_client::kernel_rpc->save(id);      
   }
 
   std::shared_ptr<serialization::promise<void>> kernel_shield::kill(kernel_shield::process_id id) {
@@ -68,7 +69,18 @@ namespace waos {
   std::shared_ptr<serialization::promise<void>> kernel_shield::bind(kernel_shield::process_id process_from, kernel_shield::socket_id socket_from, 
                                                                      kernel_shield::process_id process_to, kernel_shield::socket_id socket_to,
                                                                      kernel_shield::direction direction) {
-    return kernel_client::kernel_rpc->bind(process_from, socket_from, process_to, socket_to, direction);
+    printf("bind: process_from=%d, socket_from=%d, process_to=%d, socket_to=%d, direction=%d\n", process_from, socket_from, process_to, socket_to, direction);  
+    try {                                                                
+      co_await kernel_client::kernel_rpc->bind(process_from, socket_from, process_to, socket_to, direction);
+    } catch (const serialization::rpc_exception& e) {
+      printf("bind FAIL: %s\n", e.what());
+      throw e;
+    } catch (...){
+      printf("bind FAIL: unknown exception\n");
+      throw;
+    }
+    printf("bind done: process_from=%d, socket_from=%d, process_to=%d, socket_to=%d, direction=%d\n", process_from, socket_from, process_to, socket_to, direction);
+    co_return;
   }
 
   std::shared_ptr<serialization::promise<void>> kernel_shield::unbind(kernel_shield::process_id process_from, kernel_shield::socket_id socket_from,

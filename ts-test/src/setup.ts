@@ -71,8 +71,8 @@ export async function setupTestEnvironment(): Promise<TestContext> {
 
   // Socket options
   const socketOptions: SocketOptions = {
-    inputBufferSize: 1024,
-    outputBufferSize: 1024,
+    inputBufferSize: 2024,
+    outputBufferSize: 2024,
     flushThreshold: 512,
     dataEventThreshold: 0,
     drainEventThreshold: 4,
@@ -272,6 +272,7 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     socket_to: number,
     direction: Direction15
   ): Promise<void> => {
+    throw new Error('rejection test')
     const call: MockKernelCall = {
       method: 'kernel.bind',
       args: [process_from, socket_from, process_to, socket_to, direction],
