@@ -272,7 +272,6 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     socket_to: number,
     direction: Direction15
   ): Promise<void> => {
-    throw new Error('rejection test')
     const call: MockKernelCall = {
       method: 'kernel.bind',
       args: [process_from, socket_from, process_to, socket_to, direction],

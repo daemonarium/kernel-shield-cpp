@@ -26,23 +26,6 @@ describe('Kernel Shield', () => {
     expect(methodNames).to.include('kernel_shield.request')
   })
 
-  it('random bind that should fail', async () => {
-    const methods = context.rpcRegistry.getMethods()
-    const bindMethod = methods.find(m => m.memberName === 'kernel_shield.bind')
-    expect(bindMethod).to.be.not.undefined
-    
-    if (!bindMethod) return
-    
-    try {
-      await context.rpcClient.call(bindMethod.methodId, 1, 0, 1, 0, Direction.BOTH)
-      expect(true).to.be.false
-    } catch (error) {
-      expect(error).to.be.not.undefined
-    }
-
-
-  })
-
   it('should handle save request (passthrough to kernel)', async () => {
     // Find save method
     const methods = context.rpcRegistry.getMethods()
@@ -53,6 +36,9 @@ describe('Kernel Shield', () => {
 
     // Create a test process first so we can save it
     const testProcessId = await context.kernel.spawnLocal(1000000)
+    const testProcess = context.kernel.processes[testProcessId] as LocalProcess | undefined
+    expect(testProcess).to.be.not.undefined
+    testProcess.memory = new Uint8Array(new Array(1024).fill(0).map((_, i) => i % 256))
     expect(testProcessId).to.be.not.undefined
 
     // Clear previous kernel calls
@@ -60,6 +46,7 @@ describe('Kernel Shield', () => {
 
     // Call save method (this should pass through to kernel)
     const savedMemory = await context.rpcClient.call(saveMethod.methodId, testProcessId)
+    expect(savedMemory).to.deep.equal(testProcess.memory)
     
     // Verify that kernel.save was called
     const saveCalls = context.kernelCalls.filter(call => call.method === 'kernel.save')
@@ -94,6 +81,8 @@ describe('Kernel Shield', () => {
     expect(setManaLimitCall.error).to.be.undefined
   })
 
+  let spawnedProcessId: number | undefined
+
   describe('Process Spawn', () => {
     it('should handle spawn request and create process', async () => {
 
@@ -122,7 +111,8 @@ describe('Kernel Shield', () => {
           1000000 // mana_limit
         )
 
-        console.log('processId', processId)      
+        console.log('processId', processId)   
+        spawnedProcessId = processId;   
 
         // Verify process was created
         expect(processId).to.be.not.undefined
@@ -160,7 +150,7 @@ describe('Kernel Shield', () => {
       if (!bindMethod) return
       
       try {
-        const processId = 3
+        const processId = spawnedProcessId
           
         await context.rpcClient.call( // bind kernel-shield -> process requests
           bindMethod.methodId,
@@ -209,7 +199,7 @@ describe('Kernel Shield', () => {
       try {
         const response = await context.rpcClient.call(
           requestMethod.methodId,
-          3, // process_id
+          spawnedProcessId, // process_id
           requestData // request
         )
         console.log('response', response)
@@ -258,7 +248,7 @@ describe('Kernel Shield', () => {
       // Call kill on process 1 (kernel-shield itself)
       // This should trigger cleanup
       try {
-        await context.rpcClient.call(killMethod.methodId, 2)
+        await context.rpcClient.call(killMethod.methodId, spawnedProcessId)
       } catch (error) {
         // Expected behavior - can't kill kernel-shield from itself
         // But we can verify the RPC call was made

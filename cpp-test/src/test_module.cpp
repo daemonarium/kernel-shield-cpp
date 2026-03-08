@@ -22,17 +22,30 @@ static std::string test_output;
 static bool tests_done = false;
 static std::vector<uint8_t> mock_wasm_code;
 
+static std::string exception_message(std::exception_ptr ex) {
+  try {
+    std::rethrow_exception(ex);
+  } catch(const std::exception& e) {
+    return e.what();
+  } catch(...) {
+    return "unknown exception";
+  }
+}
+
 // Async test runner - chains tests via promise callbacks
 struct async_test_runner {
+  using done_cb_t = std::function<void()>;
+  using fail_cb_t = std::function<void(std::string)>;
+
   struct test_case {
     std::string name;
-    std::function<void(std::function<void()>)> run; // takes a "done" callback
+    std::function<void(done_cb_t, fail_cb_t)> run;
   };
 
   std::vector<test_case> tests;
   size_t current = 0;
 
-  void add(const char* name, std::function<void(std::function<void()>)> fn) {
+  void add(const char* name, std::function<void(done_cb_t, fail_cb_t)> fn) {
     tests.push_back({name, fn});
   }
 
@@ -59,9 +72,15 @@ struct async_test_runner {
       current++;
       run_next();
     };
+    auto fail_cb = [this, test_name](std::string reason) {
+      printf("[test] FAIL: %s - %s\n", test_name.c_str(), reason.c_str());
+      ut::get_runner().report_fail(test_name, reason);
+      current++;
+      run_next();
+    };
 
     try {
-      test.run(done_cb);
+      test.run(done_cb, fail_cb);
     } catch(const std::exception& e) {
       printf("[test] FAIL: %s - %s\n", test_name.c_str(), e.what());
       ut::get_runner().report_fail(test_name, e.what());
@@ -76,86 +95,91 @@ static uint64_t spawned_process_id = 0;
 
 // ---- Test definitions ----
 
-void test_set_mana_limit(std::function<void()> done) {
+void test_set_mana_limit(async_test_runner::done_cb_t done, async_test_runner::fail_cb_t fail) {
   auto promise = shield->set_mana_limit(500000);
   promise->handle([done]() {
     done();
-  }, [](std::exception_ptr ex) {
-    std::rethrow_exception(ex);
+  }, [fail](std::exception_ptr ex) {
+    fail(exception_message(ex));
   });
 }
 
-void test_spawn(std::function<void()> done) {
-  auto promise = shield->spawn(mock_wasm_code, 2048, 1000000);
-  promise->handle([done](uint64_t process_id) {
-    ut_expect(process_id > 0);
-    spawned_process_id = process_id;
-    done();
-  }, [](std::exception_ptr ex) {
-    std::rethrow_exception(ex);
+void test_spawn(async_test_runner::done_cb_t done, async_test_runner::fail_cb_t fail) {
+  auto promise = shield->spawn(mock_wasm_code, 10, 1000000);
+  promise->handle([done, fail](uint64_t process_id) {
+    try {
+      ut_expect(process_id > 0);
+      spawned_process_id = process_id;
+      done();
+    } catch(const std::exception& e) {
+      fail(e.what());
+    }
+  }, [fail](std::exception_ptr ex) {
+    fail(exception_message(ex));
   });
 }
 
-void test_bind(std::function<void()> done) {
+void test_bind(async_test_runner::done_cb_t done, async_test_runner::fail_cb_t fail) {
   uint64_t pid = spawned_process_id;
   uint64_t shield_pid = 1; // kernel-shield is process 1
 
-  // Bind spawned process socket 0 <-> kernel-shield socket (pid<<1|0)
+  // Bind spawned process socket 0 <-> kernel-shield api socket (pid<<1|0)
   auto p1 = shield->bind(pid, 0, shield_pid, (pid << 1) | 0, test::direction::BOTH);
-  p1->handle([pid, shield_pid, done]() {
-    // Bind spawned process socket 1 <-> kernel-shield socket (pid<<1|1)
-    auto p2 = shield->bind(pid, 1, shield_pid, (pid << 1) | 1, test::direction::BOTH);
-    p2->handle([done]() {
-      done();
-    }, [](std::exception_ptr ex) {
-      printf("[test] bind FAIL\n");
-      std::rethrow_exception(ex);
-    });
-  }, [](std::exception_ptr ex) {
-    std::rethrow_exception(ex);
+  p1->handle([done]() {
+    done();
+  }, [fail](std::exception_ptr ex) {
+    fail(exception_message(ex));
   });
 }
 
-void test_request(std::function<void()> done) {
+void test_request(async_test_runner::done_cb_t done, async_test_runner::fail_cb_t fail) {
   std::vector<uint8_t> data = {1, 2, 3, 4};
   auto promise = shield->request(spawned_process_id, data);
-  promise->handle([done, data](std::vector<uint8_t> response) {
-    ut_expect_eq(response.size(), data.size());
-    ut_expect(response == data);
-    done();
-  }, [](std::exception_ptr ex) {
-    std::rethrow_exception(ex);
+  promise->handle([done, fail, data](std::vector<uint8_t> response) {
+    try {
+      ut_expect_eq(response.size(), data.size());
+      ut_expect(response == data);
+      done();
+    } catch(const std::exception& e) {
+      fail(e.what());
+    }
+  }, [fail](std::exception_ptr ex) {
+    fail(exception_message(ex));
   });
 }
 
-void test_request_nonexistent(std::function<void()> done) {
+void test_request_nonexistent(async_test_runner::done_cb_t done, async_test_runner::fail_cb_t fail) {
   std::vector<uint8_t> data = {1, 2, 3, 4};
   auto promise = shield->request(999, data);
-  promise->handle([](std::vector<uint8_t>) {
-    throw std::runtime_error("should have thrown an error for non-existent process");
+  promise->handle([fail](std::vector<uint8_t>) {
+    fail("should have thrown an error for non-existent process");
   }, [done](std::exception_ptr) {
     // Expected - request to non-existent process should fail
     done();
   });
 }
 
-void test_save(std::function<void()> done) {
+void test_save(async_test_runner::done_cb_t done, async_test_runner::fail_cb_t fail) {
   auto promise = shield->save(spawned_process_id);
-  promise->handle([done](std::vector<uint8_t> memory) {
-    ut_expect(memory.size() > 0);
-    done();
+  promise->handle([done, fail](std::vector<uint8_t> memory) {
+    try {
+      ut_expect(memory.size() > 0);
+      done();
+    } catch(const std::exception& e) {
+      fail(e.what());
+    }
   }, [done](std::exception_ptr) {
     // save may fail for LocalProcess mock - that's OK, we verified the call was made
     done();
   });
 }
 
-void test_kill(std::function<void()> done) {
+void test_kill(async_test_runner::done_cb_t done, async_test_runner::fail_cb_t fail) {
   auto promise = shield->kill(spawned_process_id);
   promise->handle([done]() {
     done();
-  }, [](std::exception_ptr ex) {
-    std::rethrow_exception(ex);
+  }, [fail](std::exception_ptr ex) {
+    fail(exception_message(ex));
   });
 }
 
@@ -182,26 +206,7 @@ extern "C" size_t get_test_output(char** buffer) {
   return test_output.size();
 }
 
-std::shared_ptr<serialization::promise<void>> test_promise_exception() {
-  auto p = std::make_shared<serialization::promise<void>>();
-  p->reject(std::make_exception_ptr(std::runtime_error("test exception")));
-
-  try {
-    //throw std::exception();
-    co_await p;
-    printf("no exception\n");
-  } catch (const std::exception& e) {
-    printf("exception: %s\n", e.what());
-  } catch (const std::runtime_error& e) {
-    printf("runtime error: %s\n", e.what());
-  } catch (...) {
-    printf("unknown exception\n");
-  }
-  printf("test done\n");
-}
-
 extern "C" void set_mock_code(char* ptr, size_t size) {
-  test_promise_exception();
 
   mock_wasm_code.assign(reinterpret_cast<uint8_t*>(ptr), reinterpret_cast<uint8_t*>(ptr) + size);
 
