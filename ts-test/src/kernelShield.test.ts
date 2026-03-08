@@ -111,7 +111,6 @@ describe('Kernel Shield', () => {
           1000000 // mana_limit
         )
 
-        console.log('processId', processId)   
         spawnedProcessId = processId;   
 
         // Verify process was created
@@ -202,7 +201,6 @@ describe('Kernel Shield', () => {
           spawnedProcessId, // process_id
           requestData // request
         )
-        console.log('response', response)
         
         // Verify response structure
         expect(response).to.be.not.undefined

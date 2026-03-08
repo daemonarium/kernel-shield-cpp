@@ -10,8 +10,6 @@ namespace waos {
   std::shared_ptr<serialization::promise<kernel_shield::process_id>> kernel_shield::spawn(binary code, size_t memory_limit, size_t mana_limit) {
     auto process_id = co_await kernel_client::kernel_rpc->spawn(code, memory_limit, mana_limit);
 
-    printf("spawn: process_id=%d\n", process_id);
-
     // Ensure processes vector is large enough
     if(process_id >= processes.size()) {
       processes.resize(process_id + 1);
@@ -54,22 +52,16 @@ namespace waos {
 
   std::shared_ptr<serialization::promise<void>> kernel_shield::kill(kernel_shield::process_id id) {
     co_await kernel_client::kernel_rpc->kill(id);
-    
-    printf("killed process %d\n", id);
+
     // Finalize the process before removing it
     if(id < processes.size() && processes[id] != nullptr) {
-      printf("finalizing process %d\n", id);
       auto proc = processes[id];
       proc->finalize();
-      printf("finalized process %d\n", id);
       // Remove the process from the vector after finalization
       if(id < processes.size()) {
         processes[id] = nullptr;
       }
-      printf("removed process %d\n", id);
     }
-    printf("returning\n");
-    // Process not found, resolve anyway
     co_return;
   }
 

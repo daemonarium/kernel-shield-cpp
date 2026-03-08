@@ -58,20 +58,10 @@ namespace waos {
   }
 
   void process::finalize() {
-    // Unregister handlers
-    printf("unregistering kernel_api_socket_id\n");
     socket_handlers::unregister_socket_handler(kernel_api_socket_id());
-
-    printf("unregistering api_socket_id\n");
     socket_handlers::unregister_socket_handler(api_socket_id());
-    
-    printf("closing kernel_api_socket_id\n");
     socket_close(kernel_api_socket_id());
-
-    printf("closing api_socket_id\n");
     socket_close(api_socket_id());
-
-    printf("finalized process %d\n", id);
   }
 
   std::shared_ptr<serialization::promise<binary>> process::request(binary request) {

@@ -178,7 +178,6 @@ export async function setupTestEnvironment(): Promise<TestContext> {
 
         const data = new Uint8Array(requestLength)
         requestFromShieldSocket.inputBuffer.read(data, requestLength)
-        console.log('REQUEST RECEIVED', data, requestLength)
          
         requestFromShieldSocket.outputBuffer.poke(0, lengthBytes, 4)
         const responseIdBytes = requestFromShieldSocket.outputBuffer.pokeUVarInt(4, requestId)        
