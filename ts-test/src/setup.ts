@@ -11,6 +11,8 @@ import {
   SocketRpcClient,
   SocketRpcServer,
   TypeRegistry,
+  TypeDescription,
+  TypeKind,
   CodecRegistry,
   registerDynamicCodecs,
   deserializeTypeRegistry,
@@ -139,7 +141,8 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     //const processId = await kernel.spawn(code, memory_limit, mana_limit)
     const processId = await kernel.spawnLocal(mana_limit)
     const process = kernel.processes[processId] as LocalProcess | undefined
-    /// Create echo - everything process receives on socket 0 will be echoed back on socket 0
+    // Create socket 0 for the spawned process: use SocketRpcServer with new message-channel protocol
+    // (length | type_index | serialized_message). Minimal "echo" API: one function (binary -> binary).
     const requestFromShieldSocket = process.createSocket(0, {
       inputBufferSize: 1024,
       outputBufferSize: 1024,
@@ -148,57 +151,27 @@ export async function setupTestEnvironment(): Promise<TestContext> {
       drainEventThreshold: 4,
       flags: 0,
     })
-    requestFromShieldSocket.dataEventCallback = (dataSize: number) => {
-      while(true) {
-        if(requestFromShieldSocket.inputBuffer.readableBytes() < 4) {
-          return requestFromShieldSocket.drain()
-        }
-        const lengthArray = new Uint32Array(1)
-        const lengthBytes = new Uint8Array(lengthArray.buffer)
-        requestFromShieldSocket.inputBuffer.peek(0, lengthBytes, 4)
-        const length = lengthArray[0]
-        if(requestFromShieldSocket.inputBuffer.readableBytes() < length + 4) {
-          return requestFromShieldSocket.drain()
-        }
-
-        requestFromShieldSocket.inputBuffer.skipRead(4)
-
-        const { value: requestId, bytesRead: requestIdBytes } = requestFromShieldSocket.inputBuffer.readUVarInt()
-        const { value: functionId, bytesRead: functionIdBytes } = requestFromShieldSocket.inputBuffer.readUVarInt()        
-
-        if(functionId !== 0) {
-          throw new Error('Invalid function id')
-        }
-
-        const { value: requestLength, bytesRead: requestLengthBytes } = requestFromShieldSocket.inputBuffer.readUVarInt()
-
-        if(requestLength != (length - requestIdBytes - functionIdBytes - requestLengthBytes)) {
-          throw new Error('Invalid request length - message corrupted')
-        }
-
-        const data = new Uint8Array(requestLength)
-        requestFromShieldSocket.inputBuffer.read(data, requestLength)
-         
-        requestFromShieldSocket.outputBuffer.poke(0, lengthBytes, 4)
-        const responseIdBytes = requestFromShieldSocket.outputBuffer.pokeUVarInt(4, requestId)        
-        requestFromShieldSocket.outputBuffer.poke(4 + responseIdBytes, new Uint8Array([1]), 1) // success
-        const responseLengthBytes = requestFromShieldSocket.outputBuffer.pokeUVarInt(4 + responseIdBytes + 1, requestLength)
-        requestFromShieldSocket.outputBuffer.poke(4 + responseIdBytes + 1 + responseLengthBytes, data, requestLength)
-        lengthArray[0] = responseIdBytes + 1 + responseLengthBytes + requestLength
-        requestFromShieldSocket.outputBuffer.poke(0, lengthBytes, 4)
-        requestFromShieldSocket.commitWrite(4 + responseIdBytes + 1 + responseLengthBytes + requestLength)
-        requestFromShieldSocket.flush()
-      }
-
-
-      debugger
-      /// copy from input buffer to output buffer
-      const copiedBytes = requestFromShieldSocket.inputBuffer.copyTo(requestFromShieldSocket.outputBuffer)
-      if (copiedBytes > 0) {
-        /// handle the data
-        requestFromShieldSocket.flush()
-      }
-    }
+    const echoRegistry = new TypeRegistry()
+    const binaryType = echoRegistry.getTypeByName('binary')
+    if (!binaryType) throw new Error('built-in binary type missing')
+    const echoFunc = TypeDescription.create({
+      name: 'echo',
+      kind: TypeKind.Function,
+      members: [{ name: 'data', type: binaryType, annotations: [] }],
+      item: binaryType,
+    })
+    echoFunc.implementation = (data: Uint8Array) => data
+    const echoApi = TypeDescription.create({
+      name: 'echo_api',
+      kind: TypeKind.Object,
+      members: [{ name: 'echo', type: echoFunc, annotations: [] }],
+    })
+    echoRegistry.registerType(echoFunc)
+    echoRegistry.registerType(echoApi)
+    echoRegistry.assignMethodIds()
+    const echoCodecs = new CodecRegistry()
+    registerDynamicCodecs(echoCodecs, echoRegistry)
+    new SocketRpcServer(requestFromShieldSocket, echoRegistry, echoCodecs)
 
     const requestToShieldSocket = process.createSocket(1, {
       inputBufferSize: 1024,
