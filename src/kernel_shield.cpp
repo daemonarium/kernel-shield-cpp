@@ -76,50 +76,7 @@ extern "C" size_t rpc_description(std::uint32_t socket_id, char** buffer) {
 }
 
 
-std::unique_ptr<serialization::circular_buffer_reader> signal_reader;
-
-void handle_process_monitor_data() {
-  struct socket_info* socket = get_socket_info((std::uint32_t)base_socket_id::MONITOR);
-  // --- read one length-prefixed request from socket0 input ---
-  uint32_t signal_len = 0;
-  if (circular_buffer_readable_bytes(&socket->input_buffer) < sizeof(signal_len)) {
-    waos_socket_input_drain((std::uint32_t)base_socket_id::MONITOR);
-    return; // not enough data yet
-  }
-  circular_buffer_peek(&socket->input_buffer, 0, &signal_len, sizeof(signal_len));
-  size_t available = circular_buffer_readable_bytes(&socket->input_buffer);
-  if (available < sizeof(signal_len) + signal_len) {
-    circular_buffer_reserve_for_reading(&socket->input_buffer, signal_len + sizeof(signal_len));
-    waos_socket_input_drain((std::uint32_t)base_socket_id::MONITOR);
-    return; // wait for full message
-  }
-
-  std::shared_ptr<waos::process_event> event_pointer;
-  signal_reader->read_typed(event_pointer);
-  signal_reader->read_rest();
-  if(!event_pointer) return; // no event
-  auto process_id = event_pointer->process;
-  std::shared_ptr<waos::process_killed_event> killed_event = std::dynamic_pointer_cast<waos::process_killed_event>(event_pointer);
-  std::shared_ptr<waos::process_error_event> error_event = std::dynamic_pointer_cast<waos::process_error_event>(event_pointer);
-  if(killed_event) {
-
-  }
-  if(error_event) {
-    
-  }
-  
-  // Finalize the process before removing it
-  if(process_id < waos::processes.size() && waos::processes[process_id] != nullptr) {
-    auto proc = waos::processes[process_id];
-    proc->finalize();
-    // Remove the process from the vector after finalization
-    if(process_id < waos::processes.size()) {
-      waos::processes[process_id] = nullptr;
-    }
-  }
-  // Process not found, resolve anyway
-  
-}
+std::unique_ptr<serialization::socket_message_channel> monitor_channel;
 
 extern "C" void waos_socket_data(std::uint32_t socket) {
   socket_handlers::handle_socket_data(socket);
@@ -143,15 +100,39 @@ extern "C" void start() {
   waos::kernel_client::start();
 
   socket_open((std::uint32_t)base_socket_id::MONITOR, &socket_options);
-  signal_reader = std::make_unique<serialization::circular_buffer_reader>(
-    &get_socket_info((std::uint32_t)base_socket_id::MONITOR)->input_buffer, 0
-  );    
-  signal_reader->register_deserialize_typed_function<waos::process_killed_event>();
-  signal_reader->register_deserialize_typed_function<waos::process_error_event>();
-  
-  // Register handler for monitor socket
+  monitor_channel = std::make_unique<serialization::socket_message_channel>((std::uint32_t)base_socket_id::MONITOR);
+
+  monitor_channel->register_message_type<waos::process_killed_event>();
+  monitor_channel->register_message_type<waos::process_error_event>();
+
+  monitor_channel->on_message<waos::process_killed_event>([](waos::process_killed_event &event) {
+    auto process_id = event.process;
+
+    if (process_id < waos::processes.size() && waos::processes[process_id] != nullptr) {
+      auto proc = waos::processes[process_id];
+      proc->finalize();
+      if (process_id < waos::processes.size()) {
+        waos::processes[process_id] = nullptr;
+      }
+    }
+  });
+
+  monitor_channel->on_message<waos::process_error_event>([](waos::process_error_event &event) {
+    auto process_id = event.process;
+
+    if (process_id < waos::processes.size() && waos::processes[process_id] != nullptr) {
+      auto proc = waos::processes[process_id];
+      proc->finalize();
+      if (process_id < waos::processes.size()) {
+        waos::processes[process_id] = nullptr;
+      }
+    }
+  });
+
   socket_handlers::register_socket_handler((std::uint32_t)base_socket_id::MONITOR, []() {
-    handle_process_monitor_data();
+    if (monitor_channel) {
+      monitor_channel->handle_data();
+    }
   });
   
   socket_open((std::uint32_t)base_socket_id::USER, &socket_options); // open socket used to communicate with the shield from outside
