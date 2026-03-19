@@ -26,6 +26,21 @@ namespace waos {
     }
 
     template <typename T>
+    void register_exception(serialization::socket_rpc_server* server, T& t, bool register_type = true) {
+      #ifdef RPC_TYPE_DESCRIPTION
+      if(register_type) {
+        registry.register_type(serialization::type_description::create(t, registry));
+      }
+      #endif
+
+      #ifdef RPC_SERVER
+      if(server) {
+        server->channel().register_exception_type<T>();
+      }
+      #endif
+    }
+
+    template <typename T>
     void register_type(T& t, bool register_type = true) {
       #ifdef RPC_TYPE_DESCRIPTION
       if(register_type) {

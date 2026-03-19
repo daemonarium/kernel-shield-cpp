@@ -2,7 +2,6 @@
 
 #include "kernel_shield_api.hpp"
 #include "process_event.hpp"
-#include "serialization/rpc_exception.hpp"
 
 
 namespace waos {
@@ -22,8 +21,8 @@ namespace waos {
     void register_all(serialization::socket_rpc_server* server, bool register_type) {
       register_rpc(server, kernel_shield_api, register_type);
       register_process_events(server, register_type);
-      serialization::rpc_exception ex("");
-      register_rpc(server, ex, register_type);
+      std::runtime_error ex("Runtime error");
+      register_exception(server, ex, register_type);
     }
 
   }

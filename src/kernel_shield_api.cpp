@@ -2,7 +2,6 @@
 #include "kernel_client.hpp"
 #include <socket/socket.h>
 #include "process.hpp"
-#include <serialization/rpc_exception.hpp>
 
 namespace waos {
   kernel_shield_request_context_type kernel_shield_request_context;

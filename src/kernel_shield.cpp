@@ -20,7 +20,7 @@ std::unique_ptr<serialization::socket_rpc_server> user_rpc_server_;
 
 size_t user_rpc_description(char** buffer) {
   serialization::type_description::create(serialization::read_annotation(), waos::rpc_registration::registry);
-  waos::rpc_registration::register_all(user_rpc_server_.get(), true);
+  waos::rpc_registration::register_all(nullptr, true);
   std::ostringstream output_stream;
   serialization::stream_writer writer(output_stream);  
 

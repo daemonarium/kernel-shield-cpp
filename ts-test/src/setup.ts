@@ -21,8 +21,8 @@ import {
 import type { SocketOptions } from '@wa-os/ts-rpc'
 import {
   createGeneratedTypeRegistry,
-  direction_27,
-  type direction_27 as Direction27,
+  direction_28,
+  type direction_28 as Direction28,
 } from '@wa-os/ts-kernel/src/kernelApi.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -128,7 +128,7 @@ export async function setupTestEnvironment(): Promise<TestContext> {
   const { registry: kernelRegistry, types: kernelTypes } = kernelRegistryResult
 
   // Set up mock implementations
-  kernelTypes['kernel_spawn_22'].implementation = async (
+  kernelTypes['kernel_spawn_23'].implementation = async (
     code: Uint8Array,
     memory_limit: number,
     mana_limit: number
@@ -186,7 +186,7 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     return processId
   }
 
-  kernelTypes['kernel_resurect_23'].implementation = async (
+  kernelTypes['kernel_resurect_24'].implementation = async (
     code: Uint8Array,
     memory: Uint8Array,
     memory_limit: number,
@@ -202,7 +202,7 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     return processId
   }
 
-  kernelTypes['kernel_save_24'].implementation = async (
+  kernelTypes['kernel_save_25'].implementation = async (
     id: number
   ): Promise<Uint8Array> => {
     const call: MockKernelCall = {
@@ -220,7 +220,7 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     }
   }
 
-  kernelTypes['kernel_kill_25'].implementation = async (
+  kernelTypes['kernel_kill_26'].implementation = async (
     id: number
   ): Promise<void> => {
     const call: MockKernelCall = {
@@ -237,12 +237,12 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     }
   }
 
-  kernelTypes['kernel_bind_26'].implementation = async (
+  kernelTypes['kernel_bind_27'].implementation = async (
     process_from: number,
     socket_from: number,
     process_to: number,
     socket_to: number,
-    direction: Direction27
+    direction: Direction28
   ): Promise<void> => {
     const call: MockKernelCall = {
       method: 'kernel.bind',
@@ -258,12 +258,12 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     }
   }
 
-  kernelTypes['kernel_unbind_28'].implementation = async (
+  kernelTypes['kernel_unbind_29'].implementation = async (
     process_from: number,
     socket_from: number,
     process_to: number,
     socket_to: number,
-    direction: Direction27
+    direction: Direction28
   ): Promise<void> => {
     const call: MockKernelCall = {
       method: 'kernel.unbind',
@@ -279,7 +279,7 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     }
   }
 
-  kernelTypes['kernel_monitor_29'].implementation = async (
+  kernelTypes['kernel_monitor_30'].implementation = async (
     target: number,
     monitor: number,
     monitor_socket: number
@@ -298,7 +298,7 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     }
   }
 
-  kernelTypes['kernel_demonitor_30'].implementation = async (
+  kernelTypes['kernel_demonitor_31'].implementation = async (
     target: number,
     monitor: number,
     monitor_socket: number
@@ -317,7 +317,7 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     }
   }
 
-  kernelTypes['kernel_measure_mana_31'].implementation = async (
+  kernelTypes['kernel_measure_mana_32'].implementation = async (
     process: number,
     new_mana: number
   ): Promise<number> => {
@@ -336,7 +336,7 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     }
   }
 
-  kernelTypes['kernel_set_mana_limit_32'].implementation = async (
+  kernelTypes['kernel_set_mana_limit_33'].implementation = async (
     mana_limit: number
   ): Promise<void> => {
     const call: MockKernelCall = {
