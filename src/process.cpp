@@ -44,6 +44,7 @@ namespace waos {
 
     // Create socket_rpc_client for api_socket_id (for sending requests to process)
     rpc_client_ = std::make_unique<serialization::socket_rpc_client>(api_socket_id());
+    rpc_client_->register_basic_types(); /// TODO: register types from generated glue-code
     
     // Register handler for api_socket_id (for receiving responses from process)
     auto client_ptr = rpc_client_.get();

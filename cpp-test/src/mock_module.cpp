@@ -16,5 +16,6 @@ class mock_api {
 mock_api mock;
 
 void register_all() {
+  rpc_server_ptr->register_basic_types();
   register_rpc(mock);
 }

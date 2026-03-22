@@ -21,6 +21,7 @@ namespace waos {
       socket_open(socket_id, &socket_options);
 
       rpc_client = std::make_shared<rpc_client_type>(socket_id);
+      rpc_client->register_basic_types(); /// TODO: register types from generated glue-code
       kernel_rpc = std::make_shared<waos::kernel_rpc<rpc_client_type*>>(rpc_client.get());
 
       // Register handler for socket 1
