@@ -4,7 +4,7 @@ import { setupTestEnvironment, type TestContext } from './setup.js'
 import { LocalProcess, ModuleProcess } from '@wa-os/ts-kernel'
 import { Direction } from '@wa-os/ts-kernel'
 import type { SocketOptions } from '@wa-os/ts-rpc'
-import { CircularBufferReader, CodecRegistry, registerDynamicCodecs } from '@wa-os/ts-rpc'
+import { LocalCircularBufferReader, CodecRegistry, registerDynamicCodecs } from '@wa-os/ts-rpc'
 
 describe('Kernel Shield', () => {
   let context: TestContext
@@ -271,7 +271,7 @@ describe('Kernel Shield', () => {
 
       // Try to read any RPC calls from kernel socket
       // This would contain calls that kernel-shield makes to the kernel
-      const reader = new CircularBufferReader(kernelSocket.inputBuffer, codecs)
+      const reader = new LocalCircularBufferReader(kernelSocket.inputBuffer, codecs)
       
       // Check if there's any data
       const readableBytes = kernelSocket.inputBuffer.readableBytes()
