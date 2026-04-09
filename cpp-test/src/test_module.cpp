@@ -32,6 +32,20 @@ static std::string exception_message(std::exception_ptr ex) {
   }
 }
 
+static std::string exception_type_name(std::exception_ptr ex) {
+  try {
+    std::rethrow_exception(ex);
+  } catch(const std::runtime_error&) {
+    return "runtime_error";
+  } catch(const serialization::unknown_exception&) {
+    return "unknown_exception";
+  } catch(const std::exception&) {
+    return "std_exception";
+  } catch(...) {
+    return "unknown";
+  }
+}
+
 // Async test runner - chains tests via promise callbacks
 struct async_test_runner {
   using done_cb_t = std::function<void()>;
@@ -153,9 +167,13 @@ void test_request_nonexistent(async_test_runner::done_cb_t done, async_test_runn
   auto promise = shield->request(999, data);
   promise->handle([fail](std::vector<uint8_t>) {
     fail("should have thrown an error for non-existent process");
-  }, [done](std::exception_ptr) {
-    // Expected - request to non-existent process should fail
-    done();
+  }, [done, fail](std::exception_ptr ex) {
+    try {
+      ut_expect_eq(exception_type_name(ex), std::string("runtime_error"));
+      done();
+    } catch(const std::exception& e) {
+      fail(e.what());
+    }
   });
 }
 

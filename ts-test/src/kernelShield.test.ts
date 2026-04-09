@@ -4,7 +4,7 @@ import { setupTestEnvironment, type TestContext } from './setup.js'
 import { LocalProcess, ModuleProcess } from '@wa-os/ts-kernel'
 import { Direction } from '@wa-os/ts-kernel'
 import type { SocketOptions } from '@wa-os/ts-rpc'
-import { LocalCircularBufferReader, CodecRegistry, registerDynamicCodecs } from '@wa-os/ts-rpc'
+import { LocalCircularBufferReader, CodecRegistry, registerDynamicCodecs, RpcException } from '@wa-os/ts-rpc'
 
 describe('Kernel Shield', () => {
   let context: TestContext
@@ -230,7 +230,9 @@ describe('Kernel Shield', () => {
         throw new Error('Should have thrown an error')
       } catch (error) {
         // Expected to fail
-        expect(error).to.be.not.undefined
+        expect(error).to.be.instanceOf(RpcException)
+        const rpcError = error as RpcException
+        expect(rpcError.typeName).to.equal('runtime_error')
       }
     })
   })
