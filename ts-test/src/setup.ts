@@ -337,15 +337,16 @@ export async function setupTestEnvironment(): Promise<TestContext> {
   }
 
   kernelTypes['kernel_set_mana_limit_33'].implementation = async (
+    process: number,
     mana_limit: number
   ): Promise<void> => {
     const call: MockKernelCall = {
       method: 'kernel.set_mana_limit',
-      args: [mana_limit],
+      args: [process, mana_limit],
     }
     kernelCalls.push(call)
     try {
-      await kernel.set_mana_limit(mana_limit)
+      await kernel.set_mana_limit(process, mana_limit)
       call.result = undefined
     } catch (error) {
       call.error = error instanceof Error ? error : new Error(String(error))

@@ -8,6 +8,7 @@ import { LocalCircularBufferReader, CodecRegistry, registerDynamicCodecs, RpcExc
 
 describe('Kernel Shield', () => {
   let context: TestContext
+  let testProcessId: number | undefined
 
   before(async () => {
     context = await setupTestEnvironment()
@@ -29,17 +30,23 @@ describe('Kernel Shield', () => {
   it('should handle save request (passthrough to kernel)', async () => {
     // Find save method
     const methods = context.rpcRegistry.getMethods()
+
+    const registerProcessMethod = methods.find(m => m.memberName === 'kernel_shield.register_process')
+    expect(registerProcessMethod).to.be.not.undefined
+
     const saveMethod = methods.find(m => m.memberName === 'kernel_shield.save')
-    expect(saveMethod).to.be.not.undefined
+    expect(saveMethod).to.be.not.undefined    
     
     if (!saveMethod) return
 
     // Create a test process first so we can save it
-    const testProcessId = await context.kernel.spawnLocal(1000000)
+    testProcessId = await context.kernel.spawnLocal(1000000)
     const testProcess = context.kernel.processes[testProcessId] as LocalProcess | undefined
     expect(testProcess).to.be.not.undefined
     testProcess.memory = new Uint8Array(new Array(1024).fill(0).map((_, i) => i % 256))
     expect(testProcessId).to.be.not.undefined
+    await context.rpcClient.call(registerProcessMethod.methodId, testProcessId, 0, false)
+
 
     // Clear previous kernel calls
     context.kernelCalls.length = 0
@@ -70,14 +77,15 @@ describe('Kernel Shield', () => {
     context.kernelCalls.length = 0
 
     // Call set_mana_limit
-    await context.rpcClient.call(setManaLimitMethod.methodId, 500000)
+    await context.rpcClient.call(setManaLimitMethod.methodId, testProcessId, 500000)
     
     // Verify that kernel.set_mana_limit was called
     const setManaLimitCalls = context.kernelCalls.filter(call => call.method === 'kernel.set_mana_limit')
     expect(setManaLimitCalls.length).to.equal(1)
     
     const setManaLimitCall = setManaLimitCalls[0]
-    expect(setManaLimitCall.args[0]).to.equal(500000)
+    expect(setManaLimitCall.args[0]).to.equal(testProcessId)
+    expect(setManaLimitCall.args[1]).to.equal(500000)
     expect(setManaLimitCall.error).to.be.undefined
   })
 

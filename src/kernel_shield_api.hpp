@@ -1,6 +1,5 @@
 #pragma once
 
-#include <string>
 #include <vector>
 #include <cstdint>
 #include <memory>
@@ -41,6 +40,14 @@ namespace waos {
       static std::shared_ptr<serialization::promise<process_id>> spawn(binary code, size_t memory_limit, size_t mana_limit);
       static std::shared_ptr<serialization::promise<process_id>> resurect(binary code, binary memory,
                                                                           size_t memory_limit, size_t mana_limit);
+
+      static std::shared_ptr<serialization::promise<process_id>> spawn_isolated(binary code, size_t memory_limit, size_t mana_limit);
+      static std::shared_ptr<serialization::promise<process_id>> resurect_isolated(binary code, binary memory,
+                                                                                    size_t memory_limit, size_t mana_limit);
+
+      static std::shared_ptr<serialization::promise<void>> register_process(process_id id, process_id spawned_by, bool isolated);
+      static std::shared_ptr<serialization::promise<void>> unregister_process(process_id id);
+      
       static std::shared_ptr<serialization::promise<binary>> save(process_id id);
       static std::shared_ptr<serialization::promise<void>> kill(process_id id);
 
@@ -58,7 +65,7 @@ namespace waos {
 
       static std::shared_ptr<serialization::promise<size_t>> measure_mana(process_id process, size_t new_mana);
 
-      static std::shared_ptr<serialization::promise<void>> set_mana_limit(size_t mana_limit);
+      static std::shared_ptr<serialization::promise<void>> set_mana_limit(process_id process, size_t mana_limit);
 
       /// Additional API:
 

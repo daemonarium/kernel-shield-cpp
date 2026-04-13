@@ -54,8 +54,8 @@ namespace waos {
         return rpc_client_->template call<std::uint64_t>(8, process, new_mana);
       }
 
-      std::shared_ptr<serialization::promise<void>> set_mana_limit(std::uint64_t mana_limit) {
-        return rpc_client_->template call<void>(9, mana_limit);
+      std::shared_ptr<serialization::promise<void>> set_mana_limit(std::uint64_t process, std::uint64_t mana_limit) {
+        return rpc_client_->template call<void>(9, process, mana_limit);
       }
 
     private:

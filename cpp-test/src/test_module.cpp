@@ -109,15 +109,6 @@ static uint64_t spawned_process_id = 0;
 
 // ---- Test definitions ----
 
-void test_set_mana_limit(async_test_runner::done_cb_t done, async_test_runner::fail_cb_t fail) {
-  auto promise = shield->set_mana_limit(500000);
-  promise->handle([done]() {
-    done();
-  }, [fail](std::exception_ptr ex) {
-    fail(exception_message(ex));
-  });
-}
-
 void test_spawn(async_test_runner::done_cb_t done, async_test_runner::fail_cb_t fail) {
   auto promise = shield->spawn(mock_wasm_code, 10, 1000000);
   promise->handle([done, fail](uint64_t process_id) {
@@ -128,6 +119,15 @@ void test_spawn(async_test_runner::done_cb_t done, async_test_runner::fail_cb_t 
     } catch(const std::exception& e) {
       fail(e.what());
     }
+  }, [fail](std::exception_ptr ex) {
+    fail(exception_message(ex));
+  });
+}
+
+void test_set_mana_limit(async_test_runner::done_cb_t done, async_test_runner::fail_cb_t fail) {
+  auto promise = shield->set_mana_limit(spawned_process_id, 500000);
+  promise->handle([done]() {
+    done();
   }, [fail](std::exception_ptr ex) {
     fail(exception_message(ex));
   });
@@ -228,9 +228,9 @@ extern "C" void set_mock_code(char* ptr, size_t size) {
 
   mock_wasm_code.assign(reinterpret_cast<uint8_t*>(ptr), reinterpret_cast<uint8_t*>(ptr) + size);
 
-  // Register tests and run
-  runner.add("set_mana_limit passthrough", test_set_mana_limit);
+  // Register tests and run  
   runner.add("spawn process", test_spawn);
+  runner.add("set_mana_limit passthrough", test_set_mana_limit);
   runner.add("bind process sockets", test_bind);
   runner.add("request to process (echo)", test_request);
   runner.add("request to non-existent process", test_request_nonexistent);

@@ -17,11 +17,12 @@ namespace waos {
       kernel::process_id id;
       kernel::process_id spawned_by;
       std::uint32_t last_request_id = 0;
+      bool isolated = false;
 
       std::unique_ptr<serialization::circular_buffer_reader> signal_reader;
 
-      process(kernel::process_id id, kernel::process_id spawned_by) 
-        : id(id), spawned_by(spawned_by), last_request_id(0) {}
+      process(kernel::process_id id, kernel::process_id spawned_by, bool isolated) 
+        : id(id), spawned_by(spawned_by), last_request_id(0), isolated(false) {}
       ~process() {}
 
       std::shared_ptr<serialization::promise<void>> initialize();
@@ -36,6 +37,14 @@ namespace waos {
 
       serialization::socket_rpc_server* get_rpc_server() const {
         return rpc_server_.get();
+      }
+
+      bool is_isolated() const {
+        return isolated;
+      }
+
+      void set_isolated(bool isolated) {
+        this->isolated = isolated;
       }
 
       std::shared_ptr<serialization::promise<binary>> request(binary request);
