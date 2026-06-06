@@ -21,8 +21,8 @@ import {
 import type { SocketOptions } from '@wa-os/ts-rpc'
 import {
   createGeneratedTypeRegistry,
-  direction_28,
-  type direction_28 as Direction28,
+  direction,
+  type save_result,
 } from '@wa-os/ts-kernel/src/kernelApi.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -128,7 +128,7 @@ export async function setupTestEnvironment(): Promise<TestContext> {
   const { registry: kernelRegistry, types: kernelTypes } = kernelRegistryResult
 
   // Set up mock implementations
-  kernelTypes['kernel_spawn_23'].implementation = async (
+  kernelTypes['kernel_spawn'].implementation = async (
     code: Uint8Array,
     memory_limit: number,
     mana_limit: number
@@ -186,7 +186,7 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     return processId
   }
 
-  kernelTypes['kernel_resurect_24'].implementation = async (
+  kernelTypes['kernel_resurect'].implementation = async (
     code: Uint8Array,
     memory: Uint8Array,
     memory_limit: number,
@@ -202,16 +202,23 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     return processId
   }
 
-  kernelTypes['kernel_save_25'].implementation = async (
+  kernelTypes['kernel_save'].implementation = async (
     id: number
-  ): Promise<Uint8Array> => {
+  ): Promise<save_result> => {
     const call: MockKernelCall = {
       method: 'kernel.save',
       args: [id],
     }
     kernelCalls.push(call)
     try {
-      const result = await kernel.save(id)
+      const memory = await kernel.save(id)
+      const process = kernel.processes[id]
+      const result: save_result = {
+        snapshot_uid: 0n,
+        memory,
+        mana_used: process?.manaUsed ?? 0,
+        mana_limit: process?.manaLimit ?? 0,
+      }
       call.result = result
       return result
     } catch (error) {
@@ -220,7 +227,7 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     }
   }
 
-  kernelTypes['kernel_kill_26'].implementation = async (
+  kernelTypes['kernel_kill'].implementation = async (
     id: number
   ): Promise<void> => {
     const call: MockKernelCall = {
@@ -237,20 +244,20 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     }
   }
 
-  kernelTypes['kernel_bind_27'].implementation = async (
+  kernelTypes['kernel_bind'].implementation = async (
     process_from: number,
     socket_from: number,
     process_to: number,
     socket_to: number,
-    direction: Direction28
+    bindDirection: direction
   ): Promise<void> => {
     const call: MockKernelCall = {
       method: 'kernel.bind',
-      args: [process_from, socket_from, process_to, socket_to, direction],
+      args: [process_from, socket_from, process_to, socket_to, bindDirection],
     }
     kernelCalls.push(call)
     try {
-      await kernel.bind(process_from, socket_from, process_to, socket_to, direction as any)
+      await kernel.bind(process_from, socket_from, process_to, socket_to, bindDirection as any)
       call.result = undefined
     } catch (error) {
       call.error = error instanceof Error ? error : new Error(String(error))
@@ -258,20 +265,20 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     }
   }
 
-  kernelTypes['kernel_unbind_29'].implementation = async (
+  kernelTypes['kernel_unbind'].implementation = async (
     process_from: number,
     socket_from: number,
     process_to: number,
     socket_to: number,
-    direction: Direction28
+    unbindDirection: direction
   ): Promise<void> => {
     const call: MockKernelCall = {
       method: 'kernel.unbind',
-      args: [process_from, socket_from, process_to, socket_to, direction],
+      args: [process_from, socket_from, process_to, socket_to, unbindDirection],
     }
     kernelCalls.push(call)
     try {
-      await kernel.unbind(process_from, socket_from, process_to, socket_to, direction as any)
+      await kernel.unbind(process_from, socket_from, process_to, socket_to, unbindDirection as any)
       call.result = undefined
     } catch (error) {
       call.error = error instanceof Error ? error : new Error(String(error))
@@ -279,10 +286,11 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     }
   }
 
-  kernelTypes['kernel_monitor_30'].implementation = async (
+  kernelTypes['kernel_monitor'].implementation = async (
     target: number,
     monitor: number,
-    monitor_socket: number
+    monitor_socket: number,
+    _config: { flags: number }
   ): Promise<void> => {
     const call: MockKernelCall = {
       method: 'kernel.monitor',
@@ -298,7 +306,7 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     }
   }
 
-  kernelTypes['kernel_demonitor_31'].implementation = async (
+  kernelTypes['kernel_demonitor'].implementation = async (
     target: number,
     monitor: number,
     monitor_socket: number
@@ -317,7 +325,7 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     }
   }
 
-  kernelTypes['kernel_measure_mana_32'].implementation = async (
+  kernelTypes['kernel_measure_mana'].implementation = async (
     process: number,
     new_mana: number
   ): Promise<number> => {
@@ -336,7 +344,7 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     }
   }
 
-  kernelTypes['kernel_set_mana_limit_33'].implementation = async (
+  kernelTypes['kernel_set_mana_limit'].implementation = async (
     process: number,
     mana_limit: number
   ): Promise<void> => {
