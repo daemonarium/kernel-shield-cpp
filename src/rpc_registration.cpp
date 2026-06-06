@@ -14,6 +14,22 @@ namespace waos {
       register_rpc(server, killedEvent, register_type);
       waos::process_error_event errorEvent;
       register_rpc(server, errorEvent, register_type);
+      waos::process_copy_event copyEvent;
+      register_rpc(server, copyEvent, register_type);
+      waos::process_data_event dataEvent;
+      register_rpc(server, dataEvent, register_type);
+      waos::process_drain_event drainEvent;
+      register_rpc(server, drainEvent, register_type);
+      waos::process_save_event saveEvent;
+      register_rpc(server, saveEvent, register_type);
+      waos::process_memory_event memoryEvent;
+      register_rpc(server, memoryEvent, register_type);
+      waos::process_socket_state_event socketStateEvent;
+      register_rpc(server, socketStateEvent, register_type);
+      waos::process_measure_mana_event measureManaEvent;
+      register_rpc(server, measureManaEvent, register_type);
+      waos::process_set_mana_limit_event setManaLimitEvent;
+      register_rpc(server, setManaLimitEvent, register_type);
     }
 
     void register_all(serialization::socket_rpc_server* server, bool register_type) {

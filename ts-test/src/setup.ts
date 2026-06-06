@@ -211,14 +211,7 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     }
     kernelCalls.push(call)
     try {
-      const memory = await kernel.save(id)
-      const process = kernel.processes[id]
-      const result: save_result = {
-        snapshot_uid: 0n,
-        memory,
-        mana_used: process?.manaUsed ?? 0,
-        mana_limit: process?.manaLimit ?? 0,
-      }
+      const result = await kernel.save(id)
       call.result = result
       return result
     } catch (error) {
@@ -298,7 +291,7 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     }
     kernelCalls.push(call)
     try {
-      await kernel.monitor(target, monitor, monitor_socket)
+      await kernel.monitor(target, monitor, monitor_socket, _config)
       call.result = undefined
     } catch (error) {
       call.error = error instanceof Error ? error : new Error(String(error))
