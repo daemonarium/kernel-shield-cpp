@@ -87,7 +87,7 @@ extern "C" void waos_socket_output_drain(int socket) {
 }
 
 extern "C" void start() {
-  sockets_init(8);
+  sockets_init(64);
   struct socket_options socket_options = {
     .input_buffer_size = 1024,
     .output_buffer_size = 1024,
@@ -102,6 +102,10 @@ extern "C" void start() {
   socket_open((std::uint32_t)base_socket_id::MONITOR, &socket_options);
   monitor_channel = std::make_unique<serialization::socket_message_channel>((std::uint32_t)base_socket_id::MONITOR);
 
+  // Wire indices must match kernel ProcessMonitorEmitter (rpc_* then process_*).
+  monitor_channel->register_message_type<serialization::rpc_request>();
+  monitor_channel->register_message_type<serialization::rpc_response>();
+  monitor_channel->register_message_type<serialization::rpc_error>();
   monitor_channel->register_message_type<waos::process_killed_event>();
   monitor_channel->register_message_type<waos::process_error_event>();
   monitor_channel->register_message_type<waos::process_copy_event>();

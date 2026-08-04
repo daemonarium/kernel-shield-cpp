@@ -44,6 +44,7 @@ All kernel functions are wrapped and enhanced:
   - Automatically initializes the resurrected process
 
 - **`save(id)`**: Saves process state (passed through to kernel)
+  - Returns `save_result { snapshot_uid, memory, mana_used, mana_limit }`
 
 - **`kill(id)`**: Terminates a process with automatic cleanup
   - Kills the process via kernel RPC
@@ -57,7 +58,8 @@ All kernel functions are wrapped and enhanced:
 
 #### Monitoring
 
-- **`monitor(target, monitor, monitor_socket)`**: Sets up process monitoring (passed through to kernel)
+- **`monitor(target, monitor, monitor_socket, monitor_config)`**: Sets up process monitoring (passed through to kernel)
+  - `monitor_config.flags` selects which event kinds are delivered (see kernel `monitor_flag`)
 - **`demonitor(target, monitor, monitor_socket)`**: Removes monitoring (passed through to kernel)
 
 #### Resource Management
@@ -99,7 +101,7 @@ When a process is spawned or resurrected:
 1. Process is created via kernel RPC
 2. Process object is created and stored in the processes vector
 3. Sockets are opened (API socket and kernel API socket)
-4. Process is automatically monitored by kernel shield (process ID 1)
+4. Process is automatically monitored by kernel shield (process ID 1) with `monitor_config` flags `KILLED | ERROR` (lifecycle only)
 5. Process is ready to receive requests
 
 ### Finalization

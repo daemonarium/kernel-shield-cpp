@@ -17,6 +17,17 @@ namespace test {
     BOTH = 3,
   };
 
+  struct monitor_config {
+    std::uint32_t flags{};
+  };
+
+  struct save_result {
+    std::uint64_t snapshot_uid{};
+    binary memory{};
+    std::size_t mana_used{};
+    std::size_t mana_limit{};
+  };
+
   template <typename rpc_client_ptr_type>
   class shield_rpc {
     public:
@@ -33,8 +44,8 @@ namespace test {
         return rpc_client_->template call<std::uint64_t>(1, code, memory, memory_limit, mana_limit);
       }
 
-      std::shared_ptr<serialization::promise<binary>> save(std::uint64_t id) {
-        return rpc_client_->template call<binary>(2, id);
+      std::shared_ptr<serialization::promise<save_result>> save(std::uint64_t id) {
+        return rpc_client_->template call<save_result>(2, id);
       }
 
       std::shared_ptr<serialization::promise<void>> kill(std::uint64_t id) {
@@ -56,8 +67,9 @@ namespace test {
       }
 
       std::shared_ptr<serialization::promise<void>> monitor(
-          std::uint64_t target, std::uint64_t monitor, std::uint64_t monitor_socket) {
-        return rpc_client_->template call<void>(6, target, monitor, monitor_socket);
+          std::uint64_t target, std::uint64_t monitor, std::uint64_t monitor_socket,
+          monitor_config config) {
+        return rpc_client_->template call<void>(6, target, monitor, monitor_socket, config);
       }
 
       std::shared_ptr<serialization::promise<void>> demonitor(

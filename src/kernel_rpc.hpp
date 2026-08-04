@@ -26,8 +26,8 @@ namespace waos {
         return rpc_client_->template call<std::uint64_t>(1, code, memory, memory_limit, mana_limit);
       }
 
-      std::shared_ptr<serialization::promise<std::vector<std::uint8_t>>> save(std::uint64_t id) {
-        return rpc_client_->template call<std::vector<std::uint8_t>>(2, id);
+      std::shared_ptr<serialization::promise<save_result>> save(std::uint64_t id) {
+        return rpc_client_->template call<save_result>(2, id);
       }
 
       std::shared_ptr<serialization::promise<void>> kill(std::uint64_t id) {
@@ -42,8 +42,8 @@ namespace waos {
         return rpc_client_->template call<void>(5, process_from, socket_from, process_to, socket_to, direction);
       }
 
-      std::shared_ptr<serialization::promise<void>> monitor(std::uint64_t target, std::uint64_t monitor, std::uint64_t monitor_socket) {
-        return rpc_client_->template call<void>(6, target, monitor, monitor_socket);
+      std::shared_ptr<serialization::promise<void>> monitor(std::uint64_t target, std::uint64_t monitor, std::uint64_t monitor_socket, monitor_config config) {
+        return rpc_client_->template call<void>(6, target, monitor, monitor_socket, config);
       }
 
       std::shared_ptr<serialization::promise<void>> demonitor(std::uint64_t target, std::uint64_t monitor, std::uint64_t monitor_socket) {

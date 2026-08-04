@@ -40,8 +40,8 @@ class kernel_shield_rpc {
       return rpc_client_->template call<void>(5, id);
     }
 
-    std::shared_ptr<serialization::promise<std::vector<std::uint8_t>>> save(std::uint32_t id) {
-      return rpc_client_->template call<std::vector<std::uint8_t>>(6, id);
+    std::shared_ptr<serialization::promise<save_result>> save(std::uint32_t id) {
+      return rpc_client_->template call<save_result>(6, id);
     }
 
     std::shared_ptr<serialization::promise<void>> kill(std::uint32_t id) {
@@ -56,8 +56,8 @@ class kernel_shield_rpc {
       return rpc_client_->template call<void>(9, process_from, socket_from, process_to, socket_to, direction);
     }
 
-    std::shared_ptr<serialization::promise<void>> monitor(std::uint32_t target, std::uint32_t monitor, std::uint32_t monitor_socket) {
-      return rpc_client_->template call<void>(10, target, monitor, monitor_socket);
+    std::shared_ptr<serialization::promise<void>> monitor(std::uint32_t target, std::uint32_t monitor, std::uint32_t monitor_socket, monitor_config config) {
+      return rpc_client_->template call<void>(10, target, monitor, monitor_socket, config);
     }
 
     std::shared_ptr<serialization::promise<void>> demonitor(std::uint32_t target, std::uint32_t monitor, std::uint32_t monitor_socket) {

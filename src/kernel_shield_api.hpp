@@ -48,7 +48,7 @@ namespace waos {
       static std::shared_ptr<serialization::promise<void>> register_process(process_id id, process_id spawned_by, bool isolated);
       static std::shared_ptr<serialization::promise<void>> unregister_process(process_id id);
       
-      static std::shared_ptr<serialization::promise<binary>> save(process_id id);
+      static std::shared_ptr<serialization::promise<save_result>> save(process_id id);
       static std::shared_ptr<serialization::promise<void>> kill(process_id id);
 
       static std::shared_ptr<serialization::promise<void>> bind(process_id process_from, socket_id socket_from, 
@@ -59,7 +59,8 @@ namespace waos {
                       direction direction);
       
       static std::shared_ptr<serialization::promise<void>> monitor(process_id target,
-                                                            process_id monitor, socket_id monitor_socket);
+                                                            process_id monitor, socket_id monitor_socket,
+                                                            monitor_config config);
       static std::shared_ptr<serialization::promise<void>> demonitor(process_id target,
                                                               process_id monitor, socket_id monitor_socket);
 

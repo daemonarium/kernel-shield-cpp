@@ -179,9 +179,9 @@ void test_request_nonexistent(async_test_runner::done_cb_t done, async_test_runn
 
 void test_save(async_test_runner::done_cb_t done, async_test_runner::fail_cb_t fail) {
   auto promise = shield->save(spawned_process_id);
-  promise->handle([done, fail](std::vector<uint8_t> memory) {
+  promise->handle([done, fail](test::save_result result) {
     try {
-      ut_expect(memory.size() > 0);
+      ut_expect(result.memory.size() > 0);
       done();
     } catch(const std::exception& e) {
       fail(e.what());

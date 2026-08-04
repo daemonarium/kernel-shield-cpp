@@ -52,8 +52,9 @@ describe('Kernel Shield', () => {
     context.kernelCalls.length = 0
 
     // Call save method (this should pass through to kernel)
-    const savedMemory = await context.rpcClient.call(saveMethod.methodId, testProcessId)
-    expect(savedMemory).to.deep.equal(testProcess.memory)
+    const saveResult = await context.rpcClient.call(saveMethod.methodId, testProcessId)
+    expect(saveResult.memory).to.deep.equal(testProcess.memory)
+    expect(Number(saveResult.snapshot_uid)).to.be.a('number')
     
     // Verify that kernel.save was called
     const saveCalls = context.kernelCalls.filter(call => call.method === 'kernel.save')
@@ -63,7 +64,8 @@ describe('Kernel Shield', () => {
     expect(saveCall.args[0]).to.equal(testProcessId)
     expect(saveCall.error).to.be.undefined
     expect(saveCall.result).to.be.not.undefined
-    expect(savedMemory).to.deep.equal(saveCall.result)
+    expect(saveResult.memory).to.deep.equal(saveCall.result.memory)
+    expect(Number(saveResult.snapshot_uid)).to.equal(Number(saveCall.result.snapshot_uid))
   })
 
   it('should handle set_mana_limit request (passthrough to kernel)', async () => {
@@ -136,6 +138,15 @@ describe('Kernel Shield', () => {
         expect(kernelCall.args[1]).to.equal(2048)
         expect(kernelCall.args[2]).to.equal(1000000)
         expect(kernelCall.result).to.equal(processId)
+
+        // Spawn auto-monitors with KILLED | ERROR only
+        const monitorCalls = context.kernelCalls.filter(call => call.method === 'kernel.monitor')
+        expect(monitorCalls.length).to.be.greaterThan(0)
+        const autoMonitor = monitorCalls[monitorCalls.length - 1]
+        expect(Number(autoMonitor.args[0])).to.equal(Number(processId))
+        expect(Number(autoMonitor.args[1])).to.equal(1) // shield process id
+        const config = autoMonitor.args[3] as { flags: number | bigint }
+        expect(Number(config.flags)).to.equal((1 << 0) | (1 << 1)) // KILLED | ERROR
 
       } catch (error) {
         // Spawn might fail if kernel doesn't support it, but we can verify

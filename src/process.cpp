@@ -52,8 +52,12 @@ namespace waos {
       client_ptr->handle_data();
     });
 
-    // 1 is the kernel shield process id
-    co_await kernel_client::kernel_rpc->monitor(id, 1, (std::uint32_t)base_socket_id::MONITOR);
+    // Lifecycle-only auto-monitor for shield (no COPY); 1 is the kernel shield process id
+    monitor_config config{
+      .flags = static_cast<std::uint32_t>(monitor_flag::KILLED)
+             | static_cast<std::uint32_t>(monitor_flag::ERROR),
+    };
+    co_await kernel_client::kernel_rpc->monitor(id, 1, (std::uint32_t)base_socket_id::MONITOR, config);
     
     co_return;
   }

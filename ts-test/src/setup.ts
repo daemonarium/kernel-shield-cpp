@@ -283,15 +283,15 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     target: number,
     monitor: number,
     monitor_socket: number,
-    _config: { flags: number }
+    config: { flags: number }
   ): Promise<void> => {
     const call: MockKernelCall = {
       method: 'kernel.monitor',
-      args: [target, monitor, monitor_socket],
+      args: [target, monitor, monitor_socket, config],
     }
     kernelCalls.push(call)
     try {
-      await kernel.monitor(target, monitor, monitor_socket, _config)
+      await kernel.monitor(target, monitor, monitor_socket, config)
       call.result = undefined
     } catch (error) {
       call.error = error instanceof Error ? error : new Error(String(error))

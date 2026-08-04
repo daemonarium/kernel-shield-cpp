@@ -27,6 +27,17 @@ namespace test {
 
 using binary = std::vector<std::uint8_t>;
 
+struct monitor_config {
+  std::uint32_t flags{};
+};
+
+struct save_result {
+  std::uint64_t snapshot_uid{};
+  binary memory{};
+  std::size_t mana_used{};
+  std::size_t mana_limit{};
+};
+
 enum class direction {
   NONE = 0,
   IN = 1,

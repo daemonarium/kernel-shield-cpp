@@ -95,7 +95,7 @@ namespace waos {
       processes.resize(id + 1);
     }
     processes[id] = std::make_shared<process>(id, spawned_by, isolated);
-    processes[id]->initialize();
+    co_await processes[id]->initialize();
     co_return;
   }
 
@@ -115,14 +115,14 @@ namespace waos {
     co_return;
   } 
 
-  std::shared_ptr<serialization::promise<binary>> kernel_shield::save(kernel_shield::process_id id) {   
+  std::shared_ptr<serialization::promise<save_result>> kernel_shield::save(kernel_shield::process_id id) {   
     kernel_shield::process_id called_by = kernel_shield_request_context.process_id;  
     std::shared_ptr<waos::process> process_ptr = processes[id];
     if(process_ptr == nullptr) {
-      return serialization::promise<binary>::rejected(std::make_exception_ptr(std::runtime_error("Process not found")));
+      return serialization::promise<save_result>::rejected(std::make_exception_ptr(std::runtime_error("Process not found")));
     }
     if(process_ptr->isolated && process_ptr->spawned_by != called_by) {
-      return serialization::promise<binary>::rejected(std::make_exception_ptr(std::runtime_error("Process is isolated and not spawned by the caller")));
+      return serialization::promise<save_result>::rejected(std::make_exception_ptr(std::runtime_error("Process is isolated and not spawned by the caller")));
     }
     return kernel_client::kernel_rpc->save(id);
   }
@@ -193,8 +193,9 @@ namespace waos {
   }
       
   std::shared_ptr<serialization::promise<void>> kernel_shield::monitor(kernel_shield::process_id target,
-                                                                        kernel_shield::process_id monitor, kernel_shield::socket_id monitor_socket) {
-    return kernel_client::kernel_rpc->monitor(target, monitor, monitor_socket);
+                                                                        kernel_shield::process_id monitor, kernel_shield::socket_id monitor_socket,
+                                                                        monitor_config config) {
+    return kernel_client::kernel_rpc->monitor(target, monitor, monitor_socket, config);
   }
 
   std::shared_ptr<serialization::promise<void>> kernel_shield::demonitor(kernel_shield::process_id target,
