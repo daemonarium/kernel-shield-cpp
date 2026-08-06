@@ -22,7 +22,7 @@ namespace waos {
       std::unique_ptr<serialization::circular_buffer_reader> signal_reader;
 
       process(kernel::process_id id, kernel::process_id spawned_by, bool isolated) 
-        : id(id), spawned_by(spawned_by), last_request_id(0), isolated(false) {}
+        : id(id), spawned_by(spawned_by), last_request_id(0), isolated(isolated) {}
       ~process() {}
 
       std::shared_ptr<serialization::promise<void>> initialize();

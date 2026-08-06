@@ -28,6 +28,13 @@ namespace test {
     std::size_t mana_limit{};
   };
 
+  struct socket_binding {
+    std::uint64_t socket{};
+    std::uint64_t peer_process{};
+    std::uint64_t peer_socket{};
+    direction direction{};
+  };
+
   template <typename rpc_client_ptr_type>
   class shield_rpc {
     public:
@@ -86,9 +93,17 @@ namespace test {
         return rpc_client_->template call<void>(9, mana_limit);
       }
 
+      std::shared_ptr<serialization::promise<std::vector<socket_binding>>> list_socket_bindings(std::uint64_t id) {
+        return rpc_client_->template call<std::vector<socket_binding>>(14, id);
+      }
+
+      std::shared_ptr<serialization::promise<binary>> get_rpc_description(std::uint64_t id, std::uint64_t socket) {
+        return rpc_client_->template call<binary>(15, id, socket);
+      }
+
       std::shared_ptr<serialization::promise<binary>> request(
           std::uint64_t process_id, binary request_data) {
-        return rpc_client_->template call<binary>(10, process_id, request_data);
+        return rpc_client_->template call<binary>(16, process_id, request_data);
       }
 
     private:

@@ -30,6 +30,10 @@ namespace waos {
       register_rpc(server, measureManaEvent, register_type);
       waos::process_set_mana_limit_event setManaLimitEvent;
       register_rpc(server, setManaLimitEvent, register_type);
+      waos::process_bind_event bindEvent;
+      register_rpc(server, bindEvent, register_type);
+      waos::process_unbind_event unbindEvent;
+      register_rpc(server, unbindEvent, register_type);
     }
 
     void register_all(serialization::socket_rpc_server* server, bool register_type) {

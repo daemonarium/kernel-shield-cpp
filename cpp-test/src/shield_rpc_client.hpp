@@ -72,8 +72,16 @@ class kernel_shield_rpc {
       return rpc_client_->template call<void>(13, process, mana_limit);
     }
 
+    std::shared_ptr<serialization::promise<std::vector<socket_binding>>> list_socket_bindings(std::uint32_t id) {
+      return rpc_client_->template call<std::vector<socket_binding>>(14, id);
+    }
+
+    std::shared_ptr<serialization::promise<std::vector<std::uint8_t>>> get_rpc_description(std::uint32_t id, std::uint32_t socket) {
+      return rpc_client_->template call<std::vector<std::uint8_t>>(15, id, socket);
+    }
+
     std::shared_ptr<serialization::promise<std::vector<std::uint8_t>>> request(std::uint32_t process_id, std::vector<std::uint8_t> request) {
-      return rpc_client_->template call<std::vector<std::uint8_t>>(14, process_id, request);
+      return rpc_client_->template call<std::vector<std::uint8_t>>(16, process_id, request);
     }
 
   private:

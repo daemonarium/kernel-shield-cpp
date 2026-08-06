@@ -68,6 +68,10 @@ namespace waos {
 
       static std::shared_ptr<serialization::promise<void>> set_mana_limit(process_id process, size_t mana_limit);
 
+      static std::shared_ptr<serialization::promise<std::vector<kernel::socket_binding>>> list_socket_bindings(process_id id);
+
+      static std::shared_ptr<serialization::promise<binary>> get_rpc_description(process_id id, socket_id socket);
+
       /// Additional API:
 
       static std::shared_ptr<serialization::promise<binary>> request(process_id process_id, binary request);

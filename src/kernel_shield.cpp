@@ -116,6 +116,8 @@ extern "C" void start() {
   monitor_channel->register_message_type<waos::process_socket_state_event>();
   monitor_channel->register_message_type<waos::process_measure_mana_event>();
   monitor_channel->register_message_type<waos::process_set_mana_limit_event>();
+  monitor_channel->register_message_type<waos::process_bind_event>();
+  monitor_channel->register_message_type<waos::process_unbind_event>();
 
   monitor_channel->on_message<waos::process_killed_event>([](waos::process_killed_event &event) {
     auto process_id = event.process;

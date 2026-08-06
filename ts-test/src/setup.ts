@@ -355,6 +355,43 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     }
   }
 
+  kernelTypes['kernel_list_socket_bindings'].implementation = async (
+    process: number
+  ): Promise<unknown> => {
+    const call: MockKernelCall = {
+      method: 'kernel.list_socket_bindings',
+      args: [process],
+    }
+    kernelCalls.push(call)
+    try {
+      const result = await kernel.list_socket_bindings(process)
+      call.result = result
+      return result
+    } catch (error) {
+      call.error = error instanceof Error ? error : new Error(String(error))
+      throw error
+    }
+  }
+
+  kernelTypes['kernel_get_rpc_description'].implementation = async (
+    process: number,
+    socket: number
+  ): Promise<Uint8Array> => {
+    const call: MockKernelCall = {
+      method: 'kernel.get_rpc_description',
+      args: [process, socket],
+    }
+    kernelCalls.push(call)
+    try {
+      const result = await kernel.get_rpc_description(process, socket)
+      call.result = result
+      return result
+    } catch (error) {
+      call.error = error instanceof Error ? error : new Error(String(error))
+      throw error
+    }
+  }
+
   kernelRegistry.assignMethodIds()
 
   // Create codec registry for kernel RPC

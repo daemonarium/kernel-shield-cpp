@@ -45,6 +45,13 @@ enum class direction {
   BOTH = 3
 };
 
+struct socket_binding {
+  std::uint32_t socket{};
+  std::uint32_t peer_process{};
+  std::uint32_t peer_socket{};
+  direction direction{};
+};
+
 class kernel_shield {
  public:
   kernel_shield() = default;

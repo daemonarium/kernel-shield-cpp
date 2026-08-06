@@ -67,6 +67,15 @@ All kernel functions are wrapped and enhanced:
 - **`measure_mana(process, new_mana)`**: Measures and optionally updates process mana (passed through to kernel)
 - **`set_mana_limit(mana_limit)`**: Sets global mana limit (passed through to kernel)
 
+#### Inspection
+
+- **`list_socket_bindings(id)`**: Lists socket bindings for a process (passed through to kernel)
+  - Capability like `save`: process must be registered; isolated processes only for their spawner
+  - Returns `vector<socket_binding>` (`socket`, `peer_process`, `peer_socket`, `direction`)
+- **`get_rpc_description(id, socket)`**: Reads RPC type registry binary for a process socket (passed through to kernel)
+  - Same capability checks as `save`
+  - Returns empty binary when the process has no registry for that socket
+
 ### Additional API
 
 #### Process Communication

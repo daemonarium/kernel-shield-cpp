@@ -58,6 +58,14 @@ namespace waos {
         return rpc_client_->template call<void>(9, process, mana_limit);
       }
 
+      std::shared_ptr<serialization::promise<std::vector<kernel::socket_binding>>> list_socket_bindings(std::uint64_t id) {
+        return rpc_client_->template call<std::vector<kernel::socket_binding>>(10, id);
+      }
+
+      std::shared_ptr<serialization::promise<std::vector<std::uint8_t>>> get_rpc_description(std::uint64_t id, std::uint64_t socket) {
+        return rpc_client_->template call<std::vector<std::uint8_t>>(11, id, socket);
+      }
+
     private:
       rpc_client_ptr_type rpc_client_;
   };

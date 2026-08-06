@@ -1,8 +1,7 @@
 import { describe, it, before } from 'mocha'
 import { expect } from 'chai'
 import { setupTestEnvironment, type TestContext } from './setup.js'
-import { LocalProcess, ModuleProcess } from '@wa-os/ts-kernel'
-import { Direction } from '@wa-os/ts-kernel'
+import { LocalProcess, ModuleProcess, kernelApi, Direction } from '@wa-os/ts-kernel'
 import type { SocketOptions } from '@wa-os/ts-rpc'
 import { LocalCircularBufferReader, CodecRegistry, registerDynamicCodecs, RpcException } from '@wa-os/ts-rpc'
 
@@ -89,6 +88,107 @@ describe('Kernel Shield', () => {
     expect(setManaLimitCall.args[0]).to.equal(testProcessId)
     expect(setManaLimitCall.args[1]).to.equal(500000)
     expect(setManaLimitCall.error).to.be.undefined
+  })
+
+  it('should pass list_socket_bindings through to kernel', async () => {
+    const methods = context.rpcRegistry.getMethods()
+    const listMethod = methods.find(m => m.memberName === 'kernel_shield.list_socket_bindings')
+    const registerProcessMethod = methods.find(m => m.memberName === 'kernel_shield.register_process')
+    expect(listMethod).to.be.not.undefined
+    expect(registerProcessMethod).to.be.not.undefined
+    if (!listMethod || !registerProcessMethod) return
+
+    if (testProcessId === undefined) {
+      testProcessId = await context.kernel.spawnLocal(1000000)
+      await context.rpcClient.call(registerProcessMethod.methodId, testProcessId, 0, false)
+    }
+
+    const peerId = await context.kernel.spawnLocal(1000000)
+    const target = context.kernel.processes[testProcessId] as LocalProcess
+    const peer = context.kernel.processes[peerId] as LocalProcess
+    const sockOpts: SocketOptions = {
+      inputBufferSize: 256,
+      outputBufferSize: 256,
+      flushThreshold: 64,
+      dataEventThreshold: 0,
+      drainEventThreshold: 4,
+      flags: 0,
+    }
+    target.createSocket(0, sockOpts)
+    peer.createSocket(0, sockOpts)
+    await context.kernel.bind(testProcessId, 0, peerId, 0, Direction.BOTH)
+
+    context.kernelCalls.length = 0
+    const bindings = await context.rpcClient.call(listMethod.methodId, testProcessId) as Array<{
+      socket: number
+      peer_process: number
+      peer_socket: number
+      direction: number
+    }>
+
+    const listCalls = context.kernelCalls.filter(call => call.method === 'kernel.list_socket_bindings')
+    expect(listCalls.length).to.equal(1)
+    expect(listCalls[0].args[0]).to.equal(testProcessId)
+    expect(listCalls[0].error).to.be.undefined
+    expect(bindings.length).to.be.greaterThan(0)
+    expect(bindings[0].socket).to.equal(0)
+    expect(bindings[0].peer_process).to.equal(peerId)
+    expect(bindings[0].direction).to.equal(Direction.BOTH)
+  })
+
+  it('should pass get_rpc_description through to kernel', async () => {
+    const methods = context.rpcRegistry.getMethods()
+    const getMethod = methods.find(m => m.memberName === 'kernel_shield.get_rpc_description')
+    const registerProcessMethod = methods.find(m => m.memberName === 'kernel_shield.register_process')
+    expect(getMethod).to.be.not.undefined
+    expect(registerProcessMethod).to.be.not.undefined
+    if (!getMethod || !registerProcessMethod) return
+
+    if (testProcessId === undefined) {
+      testProcessId = await context.kernel.spawnLocal(1000000)
+      await context.rpcClient.call(registerProcessMethod.methodId, testProcessId, 0, false)
+    }
+
+    const process = context.kernel.processes[testProcessId] as LocalProcess
+    const empty = await context.rpcClient.call(getMethod.methodId, testProcessId, 0) as Uint8Array
+    expect(empty.byteLength).to.equal(0)
+
+    const { createGeneratedTypeRegistry } = kernelApi
+    process.setRpcDescription(0, createGeneratedTypeRegistry().registry)
+
+    context.kernelCalls.length = 0
+    const bytes = await context.rpcClient.call(getMethod.methodId, testProcessId, 0) as Uint8Array
+    const getCalls = context.kernelCalls.filter(call => call.method === 'kernel.get_rpc_description')
+    expect(getCalls.length).to.equal(1)
+    expect(getCalls[0].args[0]).to.equal(testProcessId)
+    expect(getCalls[0].args[1]).to.equal(0)
+    expect(getCalls[0].error).to.be.undefined
+    expect(bytes.byteLength).to.be.greaterThan(0)
+  })
+
+  it('should reject list_socket_bindings for isolated process not owned by caller', async () => {
+    const methods = context.rpcRegistry.getMethods()
+    const listMethod = methods.find(m => m.memberName === 'kernel_shield.list_socket_bindings')
+    const registerProcessMethod = methods.find(m => m.memberName === 'kernel_shield.register_process')
+    expect(listMethod).to.be.not.undefined
+    expect(registerProcessMethod).to.be.not.undefined
+    if (!listMethod || !registerProcessMethod) return
+
+    const isolatedId = await context.kernel.spawnLocal(1000000)
+    // Register as isolated, spawned by a different process than the test client (mock pid 0)
+    await context.rpcClient.call(registerProcessMethod.methodId, isolatedId, 99, true)
+
+    context.kernelCalls.length = 0
+    let rejected = false
+    try {
+      await context.rpcClient.call(listMethod.methodId, isolatedId)
+    } catch (error) {
+      rejected = true
+      expect(error).to.be.instanceOf(RpcException)
+    }
+    expect(rejected).to.equal(true)
+    const listCalls = context.kernelCalls.filter(call => call.method === 'kernel.list_socket_bindings')
+    expect(listCalls.length).to.equal(0)
   })
 
   let spawnedProcessId: number | undefined
