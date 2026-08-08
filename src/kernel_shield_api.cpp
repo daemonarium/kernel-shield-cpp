@@ -1,7 +1,12 @@
 #include "kernel_shield_api.hpp"
 #include "kernel_client.hpp"
 #include <socket/socket.h>
+#include <cstdlib>
+#include <cstdint>
 #include "process.hpp"
+
+// Defined in kernel_shield.cpp — same rules as the wasm export.
+extern "C" size_t rpc_description(std::uint32_t socket_id, char** buffer);
 
 namespace waos {
   kernel_shield_request_context_type kernel_shield_request_context;
@@ -237,6 +242,22 @@ namespace waos {
 
   std::shared_ptr<serialization::promise<binary>> kernel_shield::get_rpc_description(
       kernel_shield::process_id id, kernel_shield::socket_id socket) {
+    // Shield is always process 1 and is not registered in `processes`. Answer
+    // questions about our own sockets from the local rpc_description export.
+    constexpr process_id kShieldProcessId = 1;
+    if(id == kShieldProcessId) {
+      char* buf = nullptr;
+      const size_t n = ::rpc_description(static_cast<std::uint32_t>(socket), &buf);
+      binary out;
+      if(n > 0 && buf != nullptr) {
+        out.assign(reinterpret_cast<std::uint8_t*>(buf), reinterpret_cast<std::uint8_t*>(buf) + n);
+      }
+      if(buf != nullptr) {
+        std::free(buf);
+      }
+      return serialization::promise<binary>::resolved(std::move(out));
+    }
+
     kernel_shield::process_id called_by = kernel_shield_request_context.process_id;
     if(id >= processes.size() || processes[id] == nullptr) {
       return serialization::promise<binary>::rejected(

@@ -166,6 +166,29 @@ describe('Kernel Shield', () => {
     expect(bytes.byteLength).to.be.greaterThan(0)
   })
 
+  it('should return own API for get_rpc_description(1, …) without kernel call', async () => {
+    const methods = context.rpcRegistry.getMethods()
+    const getMethod = methods.find(m => m.memberName === 'kernel_shield.get_rpc_description')
+    expect(getMethod).to.be.not.undefined
+    if (!getMethod) return
+
+    context.kernelCalls.length = 0
+    const userBytes = await context.rpcClient.call(getMethod.methodId, 1, 0) as Uint8Array
+    expect(userBytes.byteLength).to.be.greaterThan(0)
+    expect(context.kernelCalls.filter(c => c.method === 'kernel.get_rpc_description')).to.have.length(0)
+
+    // KERNEL_API face for an arbitrary process: (pid<<1)|1
+    const kernelApiSock = (5 << 1) | 1
+    context.kernelCalls.length = 0
+    const kernelApiBytes = await context.rpcClient.call(getMethod.methodId, 1, kernelApiSock) as Uint8Array
+    expect(kernelApiBytes.byteLength).to.be.greaterThan(0)
+    expect(context.kernelCalls.filter(c => c.method === 'kernel.get_rpc_description')).to.have.length(0)
+
+    // Unknown base socket (KERNEL mock / DEBUG) → empty
+    const emptySock = await context.rpcClient.call(getMethod.methodId, 1, 1) as Uint8Array
+    expect(emptySock.byteLength).to.equal(0)
+  })
+
   it('should reject list_socket_bindings for isolated process not owned by caller', async () => {
     const methods = context.rpcRegistry.getMethods()
     const listMethod = methods.find(m => m.memberName === 'kernel_shield.list_socket_bindings')
