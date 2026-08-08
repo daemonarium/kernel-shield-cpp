@@ -223,11 +223,11 @@ namespace waos {
   std::shared_ptr<serialization::promise<std::vector<kernel::socket_binding>>> kernel_shield::list_socket_bindings(
       kernel_shield::process_id id) {
     kernel_shield::process_id called_by = kernel_shield_request_context.process_id;
-    std::shared_ptr<waos::process> process_ptr = processes[id];
-    if(process_ptr == nullptr) {
+    if(id >= processes.size() || processes[id] == nullptr) {
       return serialization::promise<std::vector<kernel::socket_binding>>::rejected(
         std::make_exception_ptr(std::runtime_error("Process not found")));
     }
+    std::shared_ptr<waos::process> process_ptr = processes[id];
     if(process_ptr->isolated && process_ptr->spawned_by != called_by) {
       return serialization::promise<std::vector<kernel::socket_binding>>::rejected(
         std::make_exception_ptr(std::runtime_error("Process is isolated and not spawned by the caller")));
@@ -238,11 +238,11 @@ namespace waos {
   std::shared_ptr<serialization::promise<binary>> kernel_shield::get_rpc_description(
       kernel_shield::process_id id, kernel_shield::socket_id socket) {
     kernel_shield::process_id called_by = kernel_shield_request_context.process_id;
-    std::shared_ptr<waos::process> process_ptr = processes[id];
-    if(process_ptr == nullptr) {
+    if(id >= processes.size() || processes[id] == nullptr) {
       return serialization::promise<binary>::rejected(
         std::make_exception_ptr(std::runtime_error("Process not found")));
     }
+    std::shared_ptr<waos::process> process_ptr = processes[id];
     if(process_ptr->isolated && process_ptr->spawned_by != called_by) {
       return serialization::promise<binary>::rejected(
         std::make_exception_ptr(std::runtime_error("Process is isolated and not spawned by the caller")));
