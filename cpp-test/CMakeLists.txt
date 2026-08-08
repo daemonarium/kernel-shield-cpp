@@ -26,8 +26,9 @@ set(COMMON_LINK_OPTIONS
 
 if(WASM)
 
-  # Mock module - echo server
-  add_executable(mock-module src/mock_module.cpp ${MODULE_FILES} ${WASM_FILES} ${IO_FILES} ${SOCKET_FILES})
+  # Mock module - echo server (same stubs/link shape as cpp-rpc example modules so
+  # rpc_description can serialize via ostringstream without trapping).
+  add_executable(mock-module src/mock_module.cpp ${MODULE_FILES} ${WASM_FILES} ${IO_FILES} ${SOCKET_FILES} ${WASI_STUBS_FILES})
   target_compile_options(mock-module PRIVATE
     -fwasm-exceptions
   )
