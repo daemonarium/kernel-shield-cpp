@@ -16,8 +16,8 @@
 #include "ut.hpp"
 
 // Globals
-static std::shared_ptr<serialization::socket_rpc_client> rpc_client;
-static std::shared_ptr<test::kernel_shield_rpc<serialization::socket_rpc_client>> shield;
+static std::shared_ptr<serialization::compressed_socket_rpc_client> rpc_client;
+static std::shared_ptr<test::kernel_shield_rpc<serialization::compressed_socket_rpc_client>> shield;
 static std::string test_output;
 static bool tests_done = false;
 static std::vector<uint8_t> mock_wasm_code;
@@ -255,9 +255,9 @@ extern "C" void start() {
   // Socket 0: connected to kernel-shield USER socket
   socket_open(0, &socket_options);
 
-  rpc_client = std::make_shared<serialization::socket_rpc_client>(0);
-  test::register_codecs(rpc_client->channel());  
-  shield = std::make_shared<test::kernel_shield_rpc<serialization::socket_rpc_client>>(rpc_client);
+  rpc_client = std::make_shared<serialization::compressed_socket_rpc_client>(0);
+  test::register_codecs(rpc_client->channel());
+  shield = std::make_shared<test::kernel_shield_rpc<serialization::compressed_socket_rpc_client>>(rpc_client);
 
   // Register handler for socket 0 (responses from kernel-shield)
   auto client_ptr = rpc_client.get();

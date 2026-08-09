@@ -35,7 +35,7 @@ namespace waos {
         return (id << 1) | 1; // socket 1 is always used for requests to kernel
       }
 
-      serialization::socket_rpc_server* get_rpc_server() const {
+      serialization::compressed_socket_rpc_server* get_rpc_server() const {
         return rpc_server_.get();
       }
 
@@ -52,8 +52,8 @@ namespace waos {
       void read_and_handle_monitor_signal(struct socket_info* socket, size_t signal_len);
 
     private:
-      std::unique_ptr<serialization::socket_rpc_server> rpc_server_;
-      std::unique_ptr<serialization::socket_rpc_client> rpc_client_;
+      std::unique_ptr<serialization::compressed_socket_rpc_server> rpc_server_;
+      std::unique_ptr<serialization::compressed_socket_rpc_client> rpc_client_;
   };
 
   extern std::vector<std::shared_ptr<waos::process>> processes;

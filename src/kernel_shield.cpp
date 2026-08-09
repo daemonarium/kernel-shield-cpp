@@ -16,7 +16,7 @@
 #include "sockets.hpp"
 
 waos::kernel_shield kernel_shield;
-std::unique_ptr<serialization::socket_rpc_server> user_rpc_server_;
+std::unique_ptr<serialization::compressed_socket_rpc_server> user_rpc_server_;
 
 size_t user_rpc_description(char** buffer) {
   serialization::type_description::create(serialization::read_annotation(), waos::rpc_registration::registry);
@@ -152,7 +152,7 @@ extern "C" void start() {
   socket_open((std::uint32_t)base_socket_id::USER, &socket_options); // open socket used to communicate with the shield from outside
   
   // Initialize socket_rpc_server after socket is opened
-  user_rpc_server_ = std::make_unique<serialization::socket_rpc_server>((std::uint32_t)base_socket_id::USER);
+  user_rpc_server_ = std::make_unique<serialization::compressed_socket_rpc_server>((std::uint32_t)base_socket_id::USER);
   
   // Register all RPC methods after server is initialized
   waos::rpc_registration::register_all(user_rpc_server_.get(), true);

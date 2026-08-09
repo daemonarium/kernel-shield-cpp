@@ -9,7 +9,7 @@ namespace waos {
 
     serialization::type_registry registry(true);
 
-    void register_process_events(serialization::socket_rpc_server* server, bool register_type) {
+    void register_process_events(serialization::compressed_socket_rpc_server* server, bool register_type) {
       waos::process_killed_event killedEvent;
       register_rpc(server, killedEvent, register_type);
       waos::process_error_event errorEvent;
@@ -36,7 +36,7 @@ namespace waos {
       register_rpc(server, unbindEvent, register_type);
     }
 
-    void register_all(serialization::socket_rpc_server* server, bool register_type) {
+    void register_all(serialization::compressed_socket_rpc_server* server, bool register_type) {
       if(server != nullptr) server->register_basic_types();
       register_rpc(server, kernel_shield_api, register_type);
       register_process_events(server, register_type);
