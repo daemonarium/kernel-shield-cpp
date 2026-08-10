@@ -11,7 +11,7 @@ namespace waos {
     extern serialization::type_registry registry;
 
     template <typename T>
-    void register_rpc(serialization::compressed_socket_rpc_server* server, T& t, bool register_type = true) {
+    void register_rpc(serialization::flat_socket_rpc_server* server, T& t, bool register_type = true) {
       #ifdef RPC_SERVER
       if(server) {
         server->register_recursive(t);
@@ -26,7 +26,7 @@ namespace waos {
     }
 
     template <typename T>
-    void register_exception(serialization::compressed_socket_rpc_server* server, T& t, bool register_type = true) {
+    void register_exception(serialization::flat_socket_rpc_server* server, T& t, bool register_type = true) {
       #ifdef RPC_TYPE_DESCRIPTION
       if(register_type) {
         registry.register_type(serialization::type_description::create(t, registry));
@@ -49,8 +49,8 @@ namespace waos {
       #endif
     }
 
-    void register_process_events(serialization::compressed_socket_rpc_server* server, bool register_type = true);
-    void register_all(serialization::compressed_socket_rpc_server* server, bool register_type = true);
+    void register_process_events(serialization::flat_socket_rpc_server* server, bool register_type = true);
+    void register_all(serialization::flat_socket_rpc_server* server, bool register_type = true);
 
   }
 }

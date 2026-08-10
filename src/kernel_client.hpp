@@ -7,7 +7,7 @@
 namespace waos {
   namespace kernel_client {
 
-    using rpc_client_type = serialization::compressed_socket_rpc_client;
+    using rpc_client_type = serialization::flat_socket_rpc_client;
 
     extern std::shared_ptr<rpc_client_type> rpc_client;
     extern std::shared_ptr<kernel_rpc<rpc_client_type*>> kernel_rpc;

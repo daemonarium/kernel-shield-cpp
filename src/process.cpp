@@ -29,7 +29,7 @@ namespace waos {
     socket_open(api_socket_id(), &socket_options);
 
     // Create socket_rpc_server for kernel_api_socket_id
-    rpc_server_ = std::make_unique<serialization::compressed_socket_rpc_server>(kernel_api_socket_id());
+    rpc_server_ = std::make_unique<serialization::flat_socket_rpc_server>(kernel_api_socket_id());
     
     // Register all RPC methods without registering types (types already registered)
     rpc_registration::register_all(rpc_server_.get(), false);
@@ -43,7 +43,7 @@ namespace waos {
     });
 
     // Create socket_rpc_client for api_socket_id (for sending requests to process)
-    rpc_client_ = std::make_unique<serialization::compressed_socket_rpc_client>(api_socket_id());
+    rpc_client_ = std::make_unique<serialization::flat_socket_rpc_client>(api_socket_id());
     rpc_client_->register_basic_types(); /// TODO: register types from generated glue-code
     
     // Register handler for api_socket_id (for receiving responses from process)

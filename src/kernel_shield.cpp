@@ -16,7 +16,7 @@
 #include "sockets.hpp"
 
 waos::kernel_shield kernel_shield;
-std::unique_ptr<serialization::compressed_socket_rpc_server> user_rpc_server_;
+std::unique_ptr<serialization::flat_socket_rpc_server> user_rpc_server_;
 
 size_t user_rpc_description(char** buffer) {
   serialization::type_description::create(serialization::read_annotation(), waos::rpc_registration::registry);
@@ -54,7 +54,7 @@ extern "C" size_t rpc_description(std::uint32_t socket_id, char** buffer) {
 }
 
 
-std::unique_ptr<serialization::socket_message_channel> monitor_channel;
+std::unique_ptr<serialization::flat_socket_message_channel> monitor_channel;
 
 extern "C" void waos_socket_data(std::uint32_t socket) {
   socket_handlers::handle_socket_data(socket);
@@ -78,7 +78,7 @@ extern "C" void start() {
   waos::kernel_client::start();
 
   socket_open((std::uint32_t)base_socket_id::MONITOR, &socket_options);
-  monitor_channel = std::make_unique<serialization::socket_message_channel>((std::uint32_t)base_socket_id::MONITOR);
+  monitor_channel = std::make_unique<serialization::flat_socket_message_channel>((std::uint32_t)base_socket_id::MONITOR);
 
   // Wire indices must match kernel ProcessMonitorEmitter (rpc_* then process_*).
   monitor_channel->register_message_type<serialization::rpc_request>();
@@ -130,7 +130,7 @@ extern "C" void start() {
   socket_open((std::uint32_t)base_socket_id::USER, &socket_options); // open socket used to communicate with the shield from outside
   
   // Initialize socket_rpc_server after socket is opened
-  user_rpc_server_ = std::make_unique<serialization::compressed_socket_rpc_server>((std::uint32_t)base_socket_id::USER);
+  user_rpc_server_ = std::make_unique<serialization::flat_socket_rpc_server>((std::uint32_t)base_socket_id::USER);
   
   // Register all RPC methods after server is initialized
   waos::rpc_registration::register_all(user_rpc_server_.get(), true);
