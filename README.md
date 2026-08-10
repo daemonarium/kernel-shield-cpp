@@ -160,6 +160,12 @@ std::shared_ptr<serialization::promise<process_id>> spawn(...) {
 - Exceptions from kernel operations are automatically propagated
 - Process finalization errors are handled gracefully
 
+## Wire / RPC
+
+USER and KERNEL_API sockets use **`flat_socket_rpc_*`** (flat message framing). Monitor traffic is flat as well. This module does **not** use `WAOS_MODULE_RPC_COMPRESSED`.
+
+C++ harness: `npx tsx kernel-shield/cpp-test/run_tests.mjs`. Monorepo release gate: [`TESTING.md`](../TESTING.md) → `npm run gate`.
+
 ## Usage
 
 Kernel Shield is typically used as a WASM module that runs as process ID 1. It:
