@@ -1,4 +1,4 @@
-#include <serialization/stream_writer.hpp>
+#include <serialization/type_registry_blob.hpp>
 #include <serialization/socket_rpc_server.hpp>
 #include <serialization/type_registry.hpp>
 #include <serialization/type_description.hpp>
@@ -21,35 +21,13 @@ std::unique_ptr<serialization::compressed_socket_rpc_server> user_rpc_server_;
 size_t user_rpc_description(char** buffer) {
   serialization::type_description::create(serialization::read_annotation(), waos::rpc_registration::registry);
   waos::rpc_registration::register_all(nullptr, true);
-  std::ostringstream output_stream;
-  serialization::stream_writer writer(output_stream);  
-
-  writer.register_serialize_typed_function<serialization::type_description>();
-  writer.register_serialize_typed_function<serialization::read_annotation>();
-
-  serialize(writer, waos::rpc_registration::registry);
-  writer.write_rest();
-
-  *buffer = (char*)malloc(output_stream.str().size());
-  memcpy(*buffer, output_stream.str().data(), output_stream.str().size());
-  return output_stream.str().size();
+  return serialization::serialize_type_registry_blob_malloc(waos::rpc_registration::registry, buffer);
 }
 
 size_t monitor_rpc_description(char** buffer) {
   serialization::type_description::create(serialization::read_annotation(), waos::rpc_registration::registry);
   waos::rpc_registration::register_process_events(nullptr, true);
-  std::ostringstream output_stream;
-  serialization::stream_writer writer(output_stream);  
-
-  writer.register_serialize_typed_function<serialization::type_description>();
-  writer.register_serialize_typed_function<serialization::read_annotation>();
-
-  serialize(writer, waos::rpc_registration::registry);
-  writer.write_rest();
-
-  *buffer = (char*)malloc(output_stream.str().size());
-  memcpy(*buffer, output_stream.str().data(), output_stream.str().size());
-  return output_stream.str().size();
+  return serialization::serialize_type_registry_blob_malloc(waos::rpc_registration::registry, buffer);
 }
 
 extern "C" size_t rpc_description(std::uint32_t socket_id, char** buffer) {  
