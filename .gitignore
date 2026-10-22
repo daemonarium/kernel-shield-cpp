@@ -1,0 +1,7 @@
+build/
+build-web/
+CMakeFiles/
+CTestTestfile.cmake
+cmake_install.cmake
+node_modules
+ts-test/node_modules

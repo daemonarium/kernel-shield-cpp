@@ -5,14 +5,20 @@ set(CMAKE_CXX_STANDARD 26)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+set(RPC_CPP_DIR ${CMAKE_CURRENT_SOURCE_DIR}/extern/rpc-cpp)
+if(NOT EXISTS ${RPC_CPP_DIR}/CMakeLists.txt)
+  message(FATAL_ERROR
+    "rpc-cpp not found. git submodule add https://github.com/daemonarium/rpc-cpp.git extern/rpc-cpp")
+endif()
+
 include_directories(src)
 aux_source_directory(src SRC_FILES)
 
-set(WASI_STUBS_FILES ${CMAKE_SOURCE_DIR}/cpp-rpc/src/utils/wasi_stubs.cpp)
-set(WASM_FILES ${CMAKE_SOURCE_DIR}/cpp-rpc/src/utils/socket_handlers.cpp)
+set(WASI_STUBS_FILES ${RPC_CPP_DIR}/src/utils/wasi_stubs.cpp)
+set(WASM_FILES ${RPC_CPP_DIR}/src/utils/socket_handlers.cpp)
 
-aux_source_directory(${CMAKE_SOURCE_DIR}/cpp-rpc/src/io IO_FILES)
-aux_source_directory(${CMAKE_SOURCE_DIR}/cpp-rpc/src/socket SOCKET_FILES)
+aux_source_directory(${RPC_CPP_DIR}/src/io IO_FILES)
+aux_source_directory(${RPC_CPP_DIR}/src/socket SOCKET_FILES)
 
 set(EXECUTABLE_NAME kernel-shield)
 
@@ -33,10 +39,10 @@ if(WASM)
     -sTOTAL_STACK=20000
     -sEXPORTED_FUNCTIONS=_rpc_description,_start,_malloc,_waos_socket_data,_waos_socket_output_drain
     -sERROR_ON_UNDEFINED_SYMBOLS=0
-    -Wl,--allow-undefined-file=${CMAKE_SOURCE_DIR}/cpp-rpc/src/examples/modules/allowed-undefined-symbols.syms
+    -Wl,--allow-undefined-file=${RPC_CPP_DIR}/src/examples/modules/allowed-undefined-symbols.syms
   )
 
-  target_include_directories(${EXECUTABLE_NAME} PRIVATE src ${CMAKE_SOURCE_DIR}/cpp-rpc/src)
+  target_include_directories(${EXECUTABLE_NAME} PRIVATE src ${RPC_CPP_DIR}/src)
   target_compile_definitions(${EXECUTABLE_NAME}
     PRIVATE
       RPC_SERVER

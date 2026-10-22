@@ -1,179 +1,77 @@
-# Kernel Shield
+# kernel-shield
 
-## Overview
+A WebAssembly module that sits in front of a Daemonarium kernel as
+process 1. Guests talk to this module. This module talks to the
+kernel. It is not part of `@daemonarium/kernel`, and it is not a
+library you link.
 
-Kernel Shield is a middleware module that acts as an intermediary layer between user processes and the kernel in the WAOS (WebAssembly Operating System) architecture. It provides enhanced process management, lifecycle handling, and additional communication capabilities beyond the basic kernel API.
+This repository is `daemonarium/kernel-shield-cpp`. The artifact is
+`kernel-shield.wasm`.
 
-## Purpose
+## Why it is a separate module
 
-The Kernel Shield module serves several key purposes:
+The kernel contract is small on purpose: spawn, bind, monitor, mana,
+save, and copying bytes on one request socket. That contract is the
+RPC in
+[rpc-cpp `examples/structures/kernel.hpp`](https://github.com/daemonarium/rpc-cpp/blob/v0.1.0/src/examples/structures/kernel.hpp).
 
-1. **Request Multiplexing**: Kernel Shield is essential because the micro-kernel has only a single socket for receiving requests. Kernel Shield aggregates requests from multiple processes and forwards them to the kernel over this single connection, then distributes responses back to the appropriate processes. This multiplexing capability allows multiple processes to communicate with the kernel simultaneously through Kernel Shield's single connection.
+Multiplexing every other process onto that one socket, the process
+registry, child initialization, isolated spawn, and `request()` live
+here. A later kernel for WAVM, Wasmer, Wasmtime, or WASMEdge
+implements only the small contract and loads this same module.
+Putting the shield inside the kernel would mean rewriting it for
+every virtual machine.
 
-2. **Process Lifecycle Management**: Automatically handles process initialization and finalization when processes are spawned or killed
-3. **Process State Tracking**: Maintains a registry of all active processes and their metadata
-4. **Enhanced Communication**: Provides additional communication channels between processes and the kernel
-5. **Request Routing**: Routes requests between processes and handles responses
-6. **Event Handling**: Manages process lifecycle events (killed, error) and cleanup
+## Build
 
-## Architecture
+Stock Clang cannot compile this module. Build the
+[reflection-toolchain](https://github.com/daemonarium/reflection-toolchain)
+sysroot and point `P2996_COMPILER_SYSROOT` at it.
 
-Kernel Shield operates as a separate process (process ID 1) that intercepts and enhances kernel operations. It maintains:
+This module compiles sources from
+[rpc-cpp](https://github.com/daemonarium/rpc-cpp) `v0.1.0`:
 
-- A vector of process objects tracking all spawned processes
-- Socket connections for each process (API socket and kernel API socket)
-- Request/response handlers for inter-process communication
-- Monitor event handlers for process lifecycle events
-
-## API Functions
-
-### Kernel API (Shielded)
-
-All kernel functions are wrapped and enhanced:
-
-#### Process Management
-
-- **`spawn(code, memory_limit, mana_limit)`**: Creates a new process with automatic initialization
-  - Spawns the process via kernel RPC
-  - Creates and stores a process object
-  - Automatically initializes the process (opens sockets, sets up monitoring)
-  - Returns the process ID
-
-- **`resurect(code, memory, memory_limit, mana_limit)`**: Resurrects a process from saved state
-  - Similar to spawn but restores process from saved memory state
-  - Automatically initializes the resurrected process
-
-- **`save(id)`**: Saves process state (passed through to kernel)
-  - Returns `save_result { snapshot_uid, memory, mana_used, mana_limit }`
-
-- **`kill(id)`**: Terminates a process with automatic cleanup
-  - Kills the process via kernel RPC
-  - Automatically finalizes the process (closes sockets, cleans up resources)
-  - Removes the process from the registry
-
-#### Socket Management
-
-- **`bind(process_from, socket_from, process_to, socket_to, direction)`**: Binds sockets between processes (passed through to kernel)
-- **`unbind(process_from, socket_from, process_to, socket_to, direction)`**: Unbinds sockets (passed through to kernel)
-
-#### Monitoring
-
-- **`monitor(target, monitor, monitor_socket, monitor_config)`**: Sets up process monitoring (passed through to kernel)
-  - `monitor_config.flags` selects which event kinds are delivered (see kernel `monitor_flag`)
-- **`demonitor(target, monitor, monitor_socket)`**: Removes monitoring (passed through to kernel)
-
-#### Resource Management
-
-- **`measure_mana(process, new_mana)`**: Measures and optionally updates process mana (passed through to kernel)
-- **`set_mana_limit(mana_limit)`**: Sets global mana limit (passed through to kernel)
-
-#### Inspection
-
-- **`list_socket_bindings(id)`**: Lists socket bindings for a process (passed through to kernel)
-  - Capability like `save`: process must be registered; isolated processes only for their spawner
-  - Returns `vector<socket_binding>` (`socket`, `peer_process`, `peer_socket`, `direction`)
-- **`get_rpc_description(id, socket)`**: Reads RPC type registry binary for a process socket (passed through to kernel)
-  - Same capability checks as `save`
-  - Returns empty binary when the process has no registry for that socket
-
-### Additional API
-
-#### Process Communication
-
-- **`request(process_id, request)`**: Sends a request to a specific process and waits for response
-  - Validates that the process exists
-  - Routes the request to the process's API socket
-  - Returns a promise that resolves with the process's response
-  - Throws an exception if the process is not found
-
-## Socket Architecture
-
-Kernel Shield uses a structured socket numbering scheme:
-
-### Base Sockets (0-3)
-- **Socket 0 (USER)**: External requests to kernel shield
-- **Socket 1 (KERNEL)**: Communication with the kernel
-- **Socket 2 (DEBUG)**: Reserved for debug messages
-- **Socket 3 (MONITOR)**: Monitor event messages from kernel
-
-### Process Sockets
-For each process (ID = `process_id`):
-- **Socket `(process_id << 1) | 0` (PROCESS_API)**: Requests to the process, responses from the process
-- **Socket `(process_id << 1) | 1` (KERNEL_API)**: Requests from the process to kernel shield
-
-## Process Lifecycle
-
-### Initialization
-
-When a process is spawned or resurrected:
-
-1. Process is created via kernel RPC
-2. Process object is created and stored in the processes vector
-3. Sockets are opened (API socket and kernel API socket)
-4. Process is automatically monitored by kernel shield (process ID 1) with `monitor_config` flags `KILLED | ERROR` (lifecycle only)
-5. Process is ready to receive requests
-
-### Finalization
-
-When a process is killed:
-
-1. Kill request is sent to kernel
-2. Process sockets are closed
-3. Process object is removed from the registry
-4. All resources are cleaned up
-
-### Event Handling
-
-Kernel Shield listens for process events on the MONITOR socket:
-
-- **`process_killed_event`**: Process was terminated
-- **`process_error_event`**: Process encountered an error
-
-Both events trigger automatic finalization and cleanup.
-
-## Request Context
-
-Kernel Shield maintains a request context (`kernel_shield_request_context`) that tracks:
-
-- **`process_id`**: The ID of the process making the current request
-
-This context is used to track which process spawned new processes, enabling proper parent-child relationships.
-
-## Implementation Details
-
-### Coroutines
-
-The module uses C++20 coroutines (`co_await`, `co_return`) for asynchronous operations, providing clean and readable async code:
-
-```cpp
-std::shared_ptr<serialization::promise<process_id>> spawn(...) {
-  auto process_id = co_await kernel_client::kernel_rpc->spawn(...);
-  // ... setup process ...
-  co_await proc->initialize();
-  co_return process_id;
-}
+```
+git submodule add https://github.com/daemonarium/rpc-cpp.git extern/rpc-cpp
+cd extern/rpc-cpp && git checkout v0.1.0
 ```
 
-### Error Handling
+```
+cmake -B build-web -S . \
+  -DCMAKE_TOOLCHAIN_FILE=$P2996_COMPILER_SYSROOT/toolchain/emscripten-p2996-toolchain.cmake \
+  -DWASM=ON
+cmake --build build-web
+```
 
-- Processes that don't exist return rejected promises with appropriate error messages
-- Exceptions from kernel operations are automatically propagated
-- Process finalization errors are handled gracefully
+`build-web/kernel-shield.wasm` exports `_rpc_description`, `_start`,
+`_malloc`, `_waos_socket_data`, and `_waos_socket_output_drain`.
 
-## Wire / RPC
+## How a host runs it
 
-USER and KERNEL_API sockets use **`flat_socket_rpc_*`** (flat message framing). Monitor traffic is flat as well. This module does **not** use `WAOS_MODULE_RPC_COMPRESSED`.
+The host supplies the Wasm bytes and spawns them as process 1 with
+`@daemonarium/kernel`. Bind shield socket 1 to the kernel RPC socket.
+Socket 0 is the user API. A guest calls `spawn`, `bind`, and
+`request` on socket 0. The shield forwards the kernel calls on
+socket 1.
 
-C++ harness: `npx tsx kernel-shield/cpp-test/run_tests.mjs`. Monorepo release gate: [`TESTING.md`](../TESTING.md) → `npm run gate`.
+See [docs/examples.md](docs/examples.md).
 
-## Usage
+## Sockets
 
-Kernel Shield is typically used as a WASM module that runs as process ID 1. It:
+| Socket | Role |
+|--------|------|
+| 0 | User API. Guests call the shield here. |
+| 1 | The one kernel socket. |
+| 2 | Debug. Reserved. |
+| 3 | Monitor events from the kernel. |
 
-1. Initializes socket connections
-2. Sets up RPC server for handling requests
-3. Registers all API functions and types
-4. Starts listening for socket events
-5. Routes requests between processes and kernel
+For each other process id `N`, socket `(N << 1)` is the process API
+and socket `(N << 1) | 1` is that process talking back to the shield.
 
-The module provides a safer and more feature-rich interface to kernel operations while maintaining compatibility with the underlying kernel API.
+The flag tables, lifecycle, and isolated-process rules are in
+[docs/architecture.md](docs/architecture.md).
+
+## License
+
+MIT. Upstream notices are in `NOTICE`. Conduct is in
+`CODE_OF_CONDUCT.md`.

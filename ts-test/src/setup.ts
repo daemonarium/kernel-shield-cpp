@@ -3,10 +3,7 @@ import { join } from 'path'
 import { fileURLToPath } from 'url'
 import { dirname } from 'path'
 
-import { Kernel } from '@wa-os/ts-kernel'
-import { ModuleProcess } from '@wa-os/ts-kernel'
-import { LocalProcess } from '@wa-os/ts-kernel'
-import { Direction } from '@wa-os/ts-kernel'
+import { Kernel, ModuleProcess, LocalProcess, Direction, kernelApi } from '@daemonarium/kernel'
 import {
   SocketRpcClient,
   SocketRpcServer,
@@ -17,13 +14,8 @@ import {
   registerDynamicCodecs,
   deserializeTypeRegistry,
   LocalSocket,
-} from '@wa-os/ts-rpc'
-import type { SocketOptions } from '@wa-os/ts-rpc'
-import {
-  createGeneratedTypeRegistry,
-  direction,
-  type save_result,
-} from '@wa-os/ts-kernel/src/kernelApi.js'
+} from '@daemonarium/rpc'
+import type { SocketOptions } from '@daemonarium/rpc'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -54,7 +46,7 @@ export async function setupTestEnvironment(): Promise<TestContext> {
   const kernel = new Kernel()
 
   // Load kernel-shield WASM
-  const wasmPath = join(__dirname, '../../../cmake-build-emscripten/kernel-shield.wasm')
+  const wasmPath = join(__dirname, '../../build-web/kernel-shield.wasm')
   const wasmCode = await readFile(wasmPath)
 
   // Create kernel-shield ModuleProcess (process ID 1)
@@ -124,7 +116,7 @@ export async function setupTestEnvironment(): Promise<TestContext> {
 
   // Create mock kernel RPC server on socket 1
   const kernelCalls: MockKernelCall[] = []
-  const kernelRegistryResult = createGeneratedTypeRegistry()
+  const kernelRegistryResult = kernelApi.createGeneratedTypeRegistry()
   const { registry: kernelRegistry, types: kernelTypes } = kernelRegistryResult
 
   // Set up mock implementations
@@ -204,7 +196,7 @@ export async function setupTestEnvironment(): Promise<TestContext> {
 
   kernelTypes['kernel_save'].implementation = async (
     id: number
-  ): Promise<save_result> => {
+  ): Promise<kernelApi.save_result> => {
     const call: MockKernelCall = {
       method: 'kernel.save',
       args: [id],
@@ -242,7 +234,7 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     socket_from: number,
     process_to: number,
     socket_to: number,
-    bindDirection: direction
+    bindDirection: kernelApi.direction
   ): Promise<void> => {
     const call: MockKernelCall = {
       method: 'kernel.bind',
@@ -263,7 +255,7 @@ export async function setupTestEnvironment(): Promise<TestContext> {
     socket_from: number,
     process_to: number,
     socket_to: number,
-    unbindDirection: direction
+    unbindDirection: kernelApi.direction
   ): Promise<void> => {
     const call: MockKernelCall = {
       method: 'kernel.unbind',

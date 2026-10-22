@@ -1,0 +1,15 @@
+kernel-shield-cpp
+Copyright (c) 2026 Magowie Sp. z o.o.
+
+This module must be built with the reflection-toolchain sysroot:
+https://github.com/daemonarium/reflection-toolchain
+
+It compiles sources from daemonarium/rpc-cpp v0.1.0:
+https://github.com/daemonarium/rpc-cpp
+
+Reflection support comes from Bloomberg's clang-p2996 and its libcxx
+(Apache License 2.0 with LLVM Exceptions), distributed via the
+toolchain repo. This repository does not bundle that compiler.
+
+The host-side test harness depends on @daemonarium/kernel 0.1.0
+and @daemonarium/rpc 0.1.0.

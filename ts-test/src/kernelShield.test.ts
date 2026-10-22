@@ -1,9 +1,9 @@
 import { describe, it, before } from 'mocha'
 import { expect } from 'chai'
 import { setupTestEnvironment, type TestContext } from './setup.js'
-import { LocalProcess, ModuleProcess, kernelApi, Direction } from '@wa-os/ts-kernel'
-import type { SocketOptions } from '@wa-os/ts-rpc'
-import { LocalCircularBufferReader, CodecRegistry, registerDynamicCodecs, RpcException } from '@wa-os/ts-rpc'
+import { LocalProcess, ModuleProcess, kernelApi, Direction } from '@daemonarium/kernel'
+import type { SocketOptions } from '@daemonarium/rpc'
+import { LocalCircularBufferReader, CodecRegistry, registerDynamicCodecs, RpcException } from '@daemonarium/rpc'
 
 describe('Kernel Shield', () => {
   let context: TestContext
@@ -116,7 +116,7 @@ describe('Kernel Shield', () => {
     }
     target.createSocket(0, sockOpts)
     peer.createSocket(0, sockOpts)
-    await context.kernel.bind(testProcessId, 0, peerId, 0, Direction.BOTH)
+    await context.kernel.bind(testProcessId, 0, peerId, 0, kernelApi.direction.BOTH)
 
     context.kernelCalls.length = 0
     const bindings = await context.rpcClient.call(listMethod.methodId, testProcessId) as Array<{

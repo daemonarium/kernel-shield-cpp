@@ -3,8 +3,8 @@ import { join } from 'path'
 import { fileURLToPath } from 'url'
 import { dirname } from 'path'
 
-import { Kernel, ModuleProcess, LocalProcess, Direction } from '@wa-os/ts-kernel'
-import { SocketRpcServer, CodecRegistry, registerDynamicCodecs } from '@wa-os/ts-rpc'
+import { Kernel, ModuleProcess, LocalProcess, Direction } from '@daemonarium/kernel'
+import { SocketRpcServer, CodecRegistry, registerDynamicCodecs } from '@daemonarium/rpc'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -16,9 +16,9 @@ async function hash(code) {
 }
 
 async function main() {
-  const kernelShieldPath = join(__dirname, '../../cmake-build-emscripten/kernel-shield.wasm')
-  const testModulePath = join(__dirname, '../../cmake-build-emscripten/kernel-shield/cpp-test/test-module.wasm')
-  const mockModulePath = join(__dirname, '../../cmake-build-emscripten/kernel-shield/cpp-test/mock-module.wasm')
+  const kernelShieldPath = join(__dirname, '../build-web/kernel-shield.wasm')
+  const testModulePath = join(__dirname, '../build-web/kernel-shield/cpp-test/test-module.wasm')
+  const mockModulePath = join(__dirname, '../build-web/kernel-shield/cpp-test/mock-module.wasm')
 
   let [kernelShieldCode, testModuleCode, mockModuleCode] = await Promise.all([
     readFile(kernelShieldPath),
